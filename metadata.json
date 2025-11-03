@@ -1,0 +1,5 @@
+{
+  "name": "Sistema de Planillas Pro",
+  "description": "Una aplicación de React para gestionar empleados y procesar planillas, mejorada con funciones de IA de Gemini para generar descripciones de puestos y resúmenes.",
+  "requestFramePermissions": []
+}
