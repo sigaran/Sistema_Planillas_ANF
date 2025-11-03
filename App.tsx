@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Employee, Payroll, Payslip, View } from './types';
+import { Employee, Payroll, Payslip, View, DeductionDetails, EmployerContributions } from './types';
 import { DashboardIcon, UsersIcon, DocumentReportIcon, PlusIcon, LogoutIcon } from './components/icons';
 import Dashboard from './components/Dashboard';
 import EmployeeList from './components/EmployeeList';
@@ -105,6 +105,48 @@ const App: React.FC = () => {
             handleCloseDeleteConfirm();
         }
     };
+    
+    const calculateDeductions = (salary: number): { deductions: DeductionDetails, totalDeductions: number, netPay: number } => {
+        const isssCap = 1000;
+        
+        // Deducciones del empleado
+        const isssDeduction = Math.min(salary, isssCap) * 0.03;
+        const afpDeduction = salary * 0.0725;
+        
+        const taxableIncome = salary - isssDeduction - afpDeduction;
+        
+        let rentaDeduction = 0;
+        if (taxableIncome > 2038.10) {
+            rentaDeduction = ((taxableIncome - 2038.10) * 0.30) + 288.57;
+        } else if (taxableIncome > 895.24) {
+            rentaDeduction = ((taxableIncome - 895.24) * 0.20) + 60.00;
+        } else if (taxableIncome > 550.00) {
+            rentaDeduction = ((taxableIncome - 550.00) * 0.10) + 17.67;
+        }
+
+        const deductions: DeductionDetails = {
+            isss: isssDeduction,
+            afp: afpDeduction,
+            renta: rentaDeduction,
+        };
+
+        const totalDeductions = isssDeduction + afpDeduction + rentaDeduction;
+        const netPay = salary - totalDeductions;
+
+        return { deductions, totalDeductions, netPay };
+    };
+
+    const calculateEmployerContributions = (salary: number): EmployerContributions => {
+        const isssCap = 1000;
+        const isssContribution = Math.min(salary, isssCap) * 0.075;
+        const afpContribution = salary * 0.0775;
+        return {
+            isss: isssContribution,
+            afp: afpContribution,
+            total: isssContribution + afpContribution,
+        };
+    }
+
 
     const handleRunPayroll = useCallback(() => {
         if (employees.length === 0) {
@@ -120,23 +162,36 @@ const App: React.FC = () => {
             alert(`La planilla para ${periodCapitalized} ya ha sido ejecutada.`);
             return;
         }
-
+        
+        let totalPayrollCost = 0;
         const newPayslips: Payslip[] = employees.map(emp => {
-            // Note: This is a simplified calculation. Real payroll would depend on contractType.
+            // Nota: Esta lógica asume el tipo de contrato mensual.
             const grossPay = emp.baseSalary; 
-            const deductions = grossPay * 0.20; // 20% flat tax for simplicity
-            const netPay = grossPay - deductions;
-            return { employeeId: emp.id, employeeName: emp.name, grossPay, deductions, netPay };
+
+            const { deductions, totalDeductions, netPay } = calculateDeductions(grossPay);
+            const employerContributions = calculateEmployerContributions(grossPay);
+            
+            totalPayrollCost += grossPay + employerContributions.total;
+
+            return { 
+                employeeId: emp.id, 
+                employeeName: emp.name,
+                baseSalary: emp.baseSalary,
+                grossPay, 
+                deductions,
+                employerContributions,
+                totalDeductions, 
+                netPay 
+            };
         });
 
-        const totalCost = newPayslips.reduce((acc, slip) => acc + slip.grossPay, 0);
 
         const newPayroll: Payroll = {
             id: new Date().toISOString(),
             period: periodCapitalized,
             date: now,
             payslips: newPayslips,
-            totalCost
+            totalCost: totalPayrollCost
         };
 
         setPayrolls(prev => [newPayroll, ...prev]);

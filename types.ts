@@ -14,11 +14,26 @@ export interface Employee {
   afpType: 'Confía' | 'Crecer';
 }
 
+export interface DeductionDetails {
+  isss: number;
+  afp: number;
+  renta: number;
+}
+
+export interface EmployerContributions {
+  isss: number;
+  afp: number;
+  total: number;
+}
+
 export interface Payslip {
   employeeId: string;
   employeeName: string;
-  grossPay: number; // For the period (monthly)
-  deductions: number;
+  baseSalary: number;
+  grossPay: number;
+  deductions: DeductionDetails;
+  employerContributions: EmployerContributions;
+  totalDeductions: number;
   netPay: number;
 }
 
