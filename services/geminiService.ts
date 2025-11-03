@@ -8,7 +8,7 @@ if (!API_KEY) {
   throw new Error("La variable de entorno API_KEY no está configurada.");
 }
 
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
 
 export const generateJobDescription = async (positionTitle: string): Promise<string> => {
   try {
