@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Employee, Payroll, Payslip, View, DeductionDetails, EmployerContributions } from './types';
 import { DashboardIcon, UsersIcon, DocumentReportIcon, PlusIcon, LogoutIcon } from './components/icons';
 import Dashboard from './components/Dashboard';
@@ -57,11 +57,51 @@ const initialEmployees: Employee[] = [
 const App: React.FC = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [view, setView] = useState<View>('dashboard');
-    const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
-    const [payrolls, setPayrolls] = useState<Payroll[]>([]);
+
+    const [employees, setEmployees] = useState<Employee[]>(() => {
+        try {
+            const savedEmployees = localStorage.getItem('planillaspro_employees');
+            return savedEmployees ? JSON.parse(savedEmployees) : initialEmployees;
+        } catch (error) {
+            console.error("Error al leer empleados de localStorage", error);
+            return initialEmployees;
+        }
+    });
+
+    const [payrolls, setPayrolls] = useState<Payroll[]>(() => {
+        try {
+            const savedPayrolls = localStorage.getItem('planillaspro_payrolls');
+            if (savedPayrolls) {
+                const parsedPayrolls = JSON.parse(savedPayrolls);
+                return parsedPayrolls.map((p: Payroll) => ({ ...p, date: new Date(p.date) }));
+            }
+            return [];
+        } catch (error) {
+            console.error("Error al leer planillas de localStorage", error);
+            return [];
+        }
+    });
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [employeeToEdit, setEmployeeToEdit] = useState<Employee | null>(null);
     const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem('planillaspro_employees', JSON.stringify(employees));
+        } catch (error) {
+            console.error("Error al guardar empleados en localStorage", error);
+        }
+    }, [employees]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem('planillaspro_payrolls', JSON.stringify(payrolls));
+        } catch (error) {
+            console.error("Error al guardar planillas en localStorage", error);
+        }
+    }, [payrolls]);
+
 
     const handleLoginSuccess = () => {
         setIsAuthenticated(true);
