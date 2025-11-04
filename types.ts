@@ -12,6 +12,7 @@ export interface Employee {
   nit: string;
   isss: string;
   nup: string;
+  telephone: string;
   position: string;
   jobDescription?: string;
   baseSalary: number;

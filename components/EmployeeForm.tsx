@@ -14,6 +14,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
         nit: '',
         isss: '',
         nup: '',
+        telephone: '',
         position: '',
         jobDescription: '',
         baseSalary: 0,
@@ -32,6 +33,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
                 nit: employeeToEdit.nit,
                 isss: employeeToEdit.isss,
                 nup: employeeToEdit.nup,
+                telephone: employeeToEdit.telephone,
                 position: employeeToEdit.position,
                 jobDescription: employeeToEdit.jobDescription || '',
                 baseSalary: employeeToEdit.baseSalary,
@@ -47,6 +49,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
                 nit: '',
                 isss: '',
                 nup: '',
+                telephone: '',
                 position: '',
                 jobDescription: '',
                 baseSalary: 0,
@@ -64,6 +67,10 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
             case 'dui':
                 if (!value) return 'El DUI es obligatorio.';
                 if (!/^\d{8}-\d{1}$/.test(value)) return 'Formato de DUI inválido. Debe ser 00000000-0.';
+                return '';
+            case 'telephone':
+                if (!value) return 'El teléfono es obligatorio.';
+                if (!/^\d{4}-\d{4}$/.test(value)) return 'Formato de teléfono inválido. Debe ser 0000-0000.';
                 return '';
             case 'nit':
                 if (!value) return 'El NIT es obligatorio.';
@@ -104,6 +111,13 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
             const numericValue = value.replace(/[^\d]/g, '');
             if (numericValue.length > 8) {
                 processedValue = `${numericValue.slice(0, 8)}-${numericValue.slice(8, 9)}`;
+            } else {
+                processedValue = numericValue;
+            }
+        } else if (name === 'telephone') {
+             const numericValue = value.replace(/[^\d]/g, '');
+            if (numericValue.length > 4) {
+                processedValue = `${numericValue.slice(0, 4)}-${numericValue.slice(4, 8)}`;
             } else {
                 processedValue = numericValue;
             }
@@ -194,6 +208,11 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
                     <label htmlFor="dui" className="block text-sm font-medium text-slate-700">DUI</label>
                     <input type="text" name="dui" id="dui" value={employee.dui} onChange={handleChange} onBlur={handleBlur} maxLength={10} placeholder="00000000-0" required className={inputClass('dui')} />
                     {errors.dui && <p className="text-red-500 text-xs mt-1">{errors.dui}</p>}
+                </div>
+                 <div>
+                    <label htmlFor="telephone" className="block text-sm font-medium text-slate-700">Teléfono</label>
+                    <input type="text" name="telephone" id="telephone" value={employee.telephone} onChange={handleChange} onBlur={handleBlur} maxLength={9} placeholder="0000-0000" required className={inputClass('telephone')} />
+                    {errors.telephone && <p className="text-red-500 text-xs mt-1">{errors.telephone}</p>}
                 </div>
                  <div>
                     <label htmlFor="nit" className="block text-sm font-medium text-slate-700">NIT</label>

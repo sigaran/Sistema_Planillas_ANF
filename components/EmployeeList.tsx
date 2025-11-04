@@ -20,6 +20,7 @@ const EmployeeList: React.FC<EmployeeListProps> = ({ employees, onEdit, onDelete
                             <th scope="col" className="px-6 py-3">Nombre</th>
                             <th scope="col" className="px-6 py-3">Puesto</th>
                             <th scope="col" className="px-6 py-3">DUI</th>
+                            <th scope="col" className="px-6 py-3">Teléfono</th>
                             <th scope="col" className="px-6 py-3">Salario Base</th>
                             <th scope="col" className="px-6 py-3">Fecha de Contratación</th>
                             <th scope="col" className="px-6 py-3">Acciones</th>
@@ -31,6 +32,7 @@ const EmployeeList: React.FC<EmployeeListProps> = ({ employees, onEdit, onDelete
                                 <th scope="row" className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{employee.name}</th>
                                 <td className="px-6 py-4">{employee.position}</td>
                                 <td className="px-6 py-4">{employee.dui}</td>
+                                <td className="px-6 py-4">{employee.telephone}</td>
                                 <td className="px-6 py-4">{employee.baseSalary.toLocaleString('es-ES', { style: 'currency', currency: 'USD' })}</td>
                                 <td className="px-6 py-4">{new Date(employee.hireDate).toLocaleDateString()}</td>
                                 <td className="px-6 py-4 flex items-center space-x-3">
@@ -47,7 +49,7 @@ const EmployeeList: React.FC<EmployeeListProps> = ({ employees, onEdit, onDelete
                         ))}
                          {employees.length === 0 && (
                             <tr>
-                                <td colSpan={6} className="text-center py-8 text-slate-500">No hay empleados para mostrar.</td>
+                                <td colSpan={7} className="text-center py-8 text-slate-500">No hay empleados para mostrar.</td>
                             </tr>
                         )}
                     </tbody>
