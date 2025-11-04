@@ -1,14 +1,16 @@
 
 import React, { useState } from 'react';
-import { Payroll, Payslip } from '../types';
+import { Payroll, Payslip, User } from '../types';
 import Modal from './Modal';
-import { DownloadIcon } from './icons';
+import { DownloadIcon, TrashIcon } from './icons';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 interface PayrollViewProps {
     payrolls: Payroll[];
     onRunPayroll: () => void;
+    onDeletePayroll: (payroll: Payroll) => void;
+    currentUser: User;
 }
 
 const formatCurrency = (amount: number) => amount.toLocaleString('es-ES', { style: 'currency', currency: 'USD' });
@@ -197,7 +199,7 @@ const UnifiedPayrollModal: React.FC<{ payroll: Payroll; onClose: () => void }> =
     );
 };
 
-const PayrollView: React.FC<PayrollViewProps> = ({ payrolls, onRunPayroll }) => {
+const PayrollView: React.FC<PayrollViewProps> = ({ payrolls, onRunPayroll, onDeletePayroll, currentUser }) => {
     const [selectedPayslip, setSelectedPayslip] = useState<{payslip: Payslip, period: string} | null>(null);
     const [unifiedPayrollToShow, setUnifiedPayrollToShow] = useState<Payroll | null>(null);
     const [expandedPayrollId, setExpandedPayrollId] = useState<string | null>(payrolls[0]?.id || null);
@@ -227,6 +229,11 @@ const PayrollView: React.FC<PayrollViewProps> = ({ payrolls, onRunPayroll }) => 
                                 <button onClick={() => setUnifiedPayrollToShow(payroll)} className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-md hover:bg-slate-100 transition-colors text-sm font-medium">
                                     Ver Planilla Patronal
                                 </button>
+                                {currentUser.role === 'admin' && (
+                                    <button onClick={() => onDeletePayroll(payroll)} className="p-2 text-red-500 hover:bg-red-100 rounded-full transition-colors">
+                                        <TrashIcon className="h-5 w-5" />
+                                    </button>
+                                )}
                             </div>
                         </div>
                         {expandedPayrollId === payroll.id && (

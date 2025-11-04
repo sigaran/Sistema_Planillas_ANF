@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import Spinner from './Spinner';
+import { User } from '../types';
 
 interface LoginProps {
-    onLoginSuccess: () => void;
+    onLoginSuccess: (user: User) => void;
+    users: User[];
 }
 
-const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+const Login: React.FC<LoginProps> = ({ onLoginSuccess, users }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -16,10 +18,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         setError('');
         setIsLoading(true);
 
-        // Simula una llamada a la API con credenciales hardcodeadas
         setTimeout(() => {
-            if (username === 'admin' && password === 'password') {
-                onLoginSuccess();
+            const foundUser = users.find(u => u.username === username && u.password === password);
+            if (foundUser) {
+                onLoginSuccess(foundUser);
             } else {
                 setError('Usuario o contraseña incorrectos.');
             }
@@ -46,7 +48,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                             onChange={(e) => setUsername(e.target.value)}
                             required
                             className="w-full text-base px-4 py-2 mt-1 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            placeholder="admin"
+                            placeholder="admin o manager"
                         />
                     </div>
                     <div>
@@ -60,7 +62,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                             onChange={(e) => setPassword(e.target.value)}
                             required
                             className="w-full text-base px-4 py-2 mt-1 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            placeholder="password"
+                            placeholder="password o password123"
                         />
                     </div>
                     {error && <p className="text-red-500 text-sm text-center">{error}</p>}

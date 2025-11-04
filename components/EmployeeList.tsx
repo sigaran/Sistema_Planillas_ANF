@@ -1,14 +1,15 @@
 import React from 'react';
-import { Employee } from '../types';
+import { Employee, User } from '../types';
 import { EditIcon, TrashIcon } from './icons';
 
 interface EmployeeListProps {
     employees: Employee[];
     onEdit: (employee: Employee) => void;
     onDelete: (employee: Employee) => void;
+    currentUser: User;
 }
 
-const EmployeeList: React.FC<EmployeeListProps> = ({ employees, onEdit, onDelete }) => {
+const EmployeeList: React.FC<EmployeeListProps> = ({ employees, onEdit, onDelete, currentUser }) => {
     return (
         <div className="bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-semibold mb-4">Lista de Empleados</h2>
@@ -36,9 +37,11 @@ const EmployeeList: React.FC<EmployeeListProps> = ({ employees, onEdit, onDelete
                                     <button onClick={() => onEdit(employee)} className="text-indigo-600 hover:text-indigo-900">
                                         <EditIcon className="h-5 w-5" />
                                     </button>
-                                    <button onClick={() => onDelete(employee)} className="text-red-600 hover:text-red-900">
-                                        <TrashIcon className="h-5 w-5" />
-                                    </button>
+                                    {currentUser.role === 'admin' && (
+                                        <button onClick={() => onDelete(employee)} className="text-red-600 hover:text-red-900">
+                                            <TrashIcon className="h-5 w-5" />
+                                        </button>
+                                    )}
                                 </td>
                             </tr>
                         ))}

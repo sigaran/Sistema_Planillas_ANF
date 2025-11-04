@@ -1,3 +1,10 @@
+export interface User {
+  id: string;
+  username: string;
+  password; // En una app real, esto sería un hash
+  role: 'admin' | 'manager';
+}
+
 export interface Employee {
   id: string;
   name: string;
@@ -45,4 +52,4 @@ export interface Payroll {
   totalCost: number;
 }
 
-export type View = 'dashboard' | 'employees' | 'payroll';
+export type View = 'dashboard' | 'employees' | 'payroll' | 'users';
