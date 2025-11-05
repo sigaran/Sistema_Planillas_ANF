@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Employee, Payroll, Payslip, View, DeductionDetails, EmployerContributions, User, PayrollNovelty } from './types';
-import { DashboardIcon, UsersIcon, DocumentReportIcon, PlusIcon, LogoutIcon, ShieldCheckIcon, CalendarIcon, SunIcon, GiftIcon } from './components/icons';
+import { DashboardIcon, UsersIcon, DocumentReportIcon, PlusIcon, LogoutIcon, ShieldCheckIcon, CalendarIcon, SunIcon, GiftIcon, MenuIcon, CloseIcon } from './components/icons';
 import Dashboard from './components/Dashboard';
 import EmployeeList from './components/EmployeeList';
 import EmployeeForm from './components/EmployeeForm';
@@ -62,6 +62,7 @@ export interface AguinaldoData {
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [view, setView] = useState<View>('dashboard');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // --- State & localStorage Management ---
     const usePersistentState = <T,>(key: string, initialValue: T) => {
@@ -372,6 +373,11 @@ const App: React.FC = () => {
         }
     };
 
+    const handleViewChange = (targetView: View) => {
+        setView(targetView);
+        setIsSidebarOpen(false); // Close sidebar on mobile after navigation
+    };
+
     const NavItem: React.FC<{
       currentView: View; targetView: View; onClick: (view: View) => void; icon: React.ReactNode; label: string;
     }> = ({ currentView, targetView, onClick, icon, label }) => (
@@ -388,19 +394,36 @@ const App: React.FC = () => {
     }
 
     return (
-        <div className="flex h-screen bg-slate-100">
-            <aside className="w-64 bg-white shadow-lg flex flex-col p-4">
-                <div className="text-2xl font-bold text-indigo-600 mb-8 p-3">PlanillasPro</div>
+        <div className="relative min-h-screen md:flex bg-slate-100">
+            {/* Overlay for mobile */}
+            {isSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+                    onClick={() => setIsSidebarOpen(false)}
+                ></div>
+            )}
+
+            <aside
+                className={`fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-lg flex flex-col p-4 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+                    isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                }`}
+            >
+                <div className="text-2xl font-bold text-indigo-600 mb-8 p-3 flex justify-between items-center">
+                    PlanillasPro
+                    <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-slate-500 hover:text-slate-800">
+                        <CloseIcon className="h-6 w-6" />
+                    </button>
+                </div>
                 <nav className="flex-grow">
                     <ul>
-                        <NavItem currentView={view} targetView="dashboard" onClick={setView} icon={<DashboardIcon className="h-6 w-6" />} label="Dashboard" />
-                        <NavItem currentView={view} targetView="employees" onClick={setView} icon={<UsersIcon className="h-6 w-6" />} label="Empleados" />
-                        <NavItem currentView={view} targetView="novelties" onClick={setView} icon={<CalendarIcon className="h-6 w-6" />} label="Novedades" />
-                        <NavItem currentView={view} targetView="vacations" onClick={setView} icon={<SunIcon className="h-6 w-6" />} label="Vacaciones" />
-                        <NavItem currentView={view} targetView="aguinaldo" onClick={setView} icon={<GiftIcon className="h-6 w-6" />} label="Aguinaldo" />
-                        <NavItem currentView={view} targetView="payroll" onClick={setView} icon={<DocumentReportIcon className="h-6 w-6" />} label="Planillas" />
+                        <NavItem currentView={view} targetView="dashboard" onClick={handleViewChange} icon={<DashboardIcon className="h-6 w-6" />} label="Dashboard" />
+                        <NavItem currentView={view} targetView="employees" onClick={handleViewChange} icon={<UsersIcon className="h-6 w-6" />} label="Empleados" />
+                        <NavItem currentView={view} targetView="novelties" onClick={handleViewChange} icon={<CalendarIcon className="h-6 w-6" />} label="Novedades" />
+                        <NavItem currentView={view} targetView="vacations" onClick={handleViewChange} icon={<SunIcon className="h-6 w-6" />} label="Vacaciones" />
+                        <NavItem currentView={view} targetView="aguinaldo" onClick={handleViewChange} icon={<GiftIcon className="h-6 w-6" />} label="Aguinaldo" />
+                        <NavItem currentView={view} targetView="payroll" onClick={handleViewChange} icon={<DocumentReportIcon className="h-6 w-6" />} label="Planillas" />
                         {currentUser.role === 'admin' && (
-                            <NavItem currentView={view} targetView="users" onClick={setView} icon={<ShieldCheckIcon className="h-6 w-6" />} label="Usuarios" />
+                            <NavItem currentView={view} targetView="users" onClick={handleViewChange} icon={<ShieldCheckIcon className="h-6 w-6" />} label="Usuarios" />
                         )}
                     </ul>
                 </nav>
@@ -416,6 +439,10 @@ const App: React.FC = () => {
                 </div>
             </aside>
             <main className="flex-1 p-8 overflow-y-auto">
+                <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 mb-4 text-slate-600 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 rounded-md">
+                    <MenuIcon className="h-6 w-6" />
+                </button>
+                
                 {view === 'employees' && (
                     <div className="flex justify-between items-center mb-6">
                         <h1 className="text-3xl font-bold text-slate-800">Gestión de Empleados</h1>
