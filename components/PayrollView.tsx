@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Payroll, Payslip, User } from '../types';
 import Modal from './Modal';
@@ -19,39 +18,49 @@ const PayslipDetailModal: React.FC<{ payslip: Payslip; payrollPeriod: string; on
 
     const exportToPDF = () => {
         const doc = new jsPDF();
-        const finalY = (doc as any).lastAutoTable.finalY || 10;
-
+        
         doc.setFontSize(18);
         doc.text("Recibo de Pago", 14, 22);
         doc.setFontSize(11);
         doc.setTextColor(100);
         doc.text(`Periodo: ${payrollPeriod}`, 14, 29);
+        doc.text(`Empleado: ${payslip.employeeName}`, 14, 36);
 
         (doc as any).autoTable({
-            startY: 35,
-            head: [['Detalle del Empleado', '']],
+            startY: 42,
+            head: [['Ingresos', 'Monto']],
             body: [
-                ['Nombre', payslip.employeeName],
-                ['Salario Bruto', formatCurrency(payslip.grossPay)],
+                ['Salario Base', formatCurrency(payslip.baseSalary)],
+                ['Pago por Horas Extras', formatCurrency(payslip.overtimePay)],
             ],
+            foot: [[{ content: 'Total Ingresos Gravables (Salario Bruto)', styles: { fontStyle: 'bold' } }, { content: formatCurrency(payslip.grossPay), styles: { fontStyle: 'bold' } }]],
             theme: 'striped',
             headStyles: { fillColor: [74, 85, 104] },
+            footStyles: { fillColor: [241, 245, 249], textColor: [0,0,0] },
         });
 
         (doc as any).autoTable({
             startY: (doc as any).lastAutoTable.finalY + 10,
-            head: [['Deducciones de Ley (Empleado)', 'Monto']],
+            head: [['Deducciones de Ley', 'Monto']],
             body: [
                 ['ISSS (3%)', formatCurrency(payslip.deductions.isss)],
                 ['AFP (7.25%)', formatCurrency(payslip.deductions.afp)],
                 ['Impuesto sobre la Renta', formatCurrency(payslip.deductions.renta)],
             ],
-            foot: [
-                [{ content: 'Total Deducciones', styles: { fontStyle: 'bold' } }, { content: formatCurrency(payslip.totalDeductions), styles: { fontStyle: 'bold' } }]
-            ],
+            foot: [[{ content: 'Total Deducciones de Ley', styles: { fontStyle: 'bold' } }, { content: formatCurrency(payslip.totalDeductions), styles: { fontStyle: 'bold' } }]],
             theme: 'striped',
             headStyles: { fillColor: [74, 85, 104] },
             footStyles: { fillColor: [241, 245, 249], textColor: [0,0,0] },
+        });
+        
+        (doc as any).autoTable({
+            startY: (doc as any).lastAutoTable.finalY + 10,
+            head: [['Otros Ingresos / Egresos', 'Monto']],
+            body: [
+                ['Viáticos (No Gravable)', formatCurrency(payslip.expenses)],
+                ['Otros Descuentos', formatCurrency(payslip.otherDeductions > 0 ? -payslip.otherDeductions : 0)],
+            ],
+            theme: 'striped',
         });
 
         (doc as any).autoTable({
@@ -61,10 +70,7 @@ const PayslipDetailModal: React.FC<{ payslip: Payslip; payrollPeriod: string; on
                  { content: formatCurrency(payslip.netPay), styles: { fontStyle: 'bold', fontSize: 12, halign: 'right' } }]
             ],
             theme: 'grid',
-            styles: {
-                fillColor: [237, 242, 247],
-                textColor: [26, 32, 44]
-            }
+            styles: { fillColor: [237, 242, 247], textColor: [26, 32, 44] }
         });
         
         doc.save(`Recibo_${payslip.employeeName.replace(' ', '_')}_${payrollPeriod}.pdf`);
@@ -72,29 +78,40 @@ const PayslipDetailModal: React.FC<{ payslip: Payslip; payrollPeriod: string; on
 
     return (
         <Modal isOpen={true} onClose={onClose} title={`Recibo de Pago - ${payslip.employeeName}`}>
-             <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
-                    <div><span className="font-semibold text-slate-600">Empleado:</span></div>
-                    <div>{payslip.employeeName}</div>
-                    
-                    <div><span className="font-semibold text-slate-600">Salario Bruto:</span></div>
-                    <div className="text-right">{formatCurrency(payslip.grossPay)}</div>
+             <div className="space-y-6 text-sm">
+                <div className="p-4 bg-slate-50 rounded-lg">
+                    <h4 className="font-semibold text-md mb-2 text-slate-700">Ingresos</h4>
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+                        <div><span className="text-slate-600">Salario Base:</span></div>
+                        <div className="text-right">{formatCurrency(payslip.baseSalary)}</div>
+                        <div><span className="text-slate-600">Pago por Horas Extras:</span></div>
+                        <div className="text-right">{formatCurrency(payslip.overtimePay)}</div>
+                        <div className="font-semibold border-t mt-2 pt-2"><span className="text-slate-600">Total Ingresos Gravables (Bruto):</span></div>
+                        <div className="font-semibold border-t mt-2 pt-2 text-right">{formatCurrency(payslip.grossPay)}</div>
+                    </div>
                 </div>
 
-                <div className="border-t pt-4">
-                    <h4 className="font-semibold text-md mb-2 text-slate-700">Deducciones de Ley (Empleado)</h4>
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                <div className="p-4 bg-slate-50 rounded-lg">
+                    <h4 className="font-semibold text-md mb-2 text-slate-700">Deducciones de Ley</h4>
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-2">
                         <div><span className="text-slate-600">ISSS (3%):</span></div>
                         <div className="text-right">{formatCurrency(payslip.deductions.isss)}</div>
-                        
                         <div><span className="text-slate-600">AFP (7.25%):</span></div>
                         <div className="text-right">{formatCurrency(payslip.deductions.afp)}</div>
-                        
                         <div><span className="text-slate-600">Impuesto sobre la Renta:</span></div>
                         <div className="text-right">{formatCurrency(payslip.deductions.renta)}</div>
-                        
-                        <div className="font-semibold border-t mt-2 pt-2"><span className="text-slate-600">Total Deducciones:</span></div>
+                        <div className="font-semibold border-t mt-2 pt-2"><span className="text-slate-600">Total Deducciones de Ley:</span></div>
                         <div className="font-semibold border-t mt-2 pt-2 text-right">{formatCurrency(payslip.totalDeductions)}</div>
+                    </div>
+                </div>
+
+                <div className="p-4 bg-slate-50 rounded-lg">
+                    <h4 className="font-semibold text-md mb-2 text-slate-700">Otros Ingresos / Egresos</h4>
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+                        <div><span className="text-slate-600">Viáticos (No Gravable):</span></div>
+                        <div className="text-right">{formatCurrency(payslip.expenses)}</div>
+                        <div><span className="text-slate-600">Otros Descuentos:</span></div>
+                        <div className="text-right text-red-600">{formatCurrency(payslip.otherDeductions > 0 ? -payslip.otherDeductions : 0)}</div>
                     </div>
                 </div>
 
@@ -117,17 +134,17 @@ const UnifiedPayrollModal: React.FC<{ payroll: Payroll; onClose: () => void }> =
     
     const exportToPDF = () => {
         const doc = new jsPDF();
-        const head = [['Empleado', 'Salario Base', 'ISSS Patronal (7.5%)', 'AFP Patronal (7.75%)', 'Costo Total Empleado']];
+        const head = [['Empleado', 'Salario Base', 'ISSS Patronal (7.5%)', 'AFP Patronal (8.75%)', 'Costo Total Empleado']];
         const body = payroll.payslips.map(p => [
             p.employeeName,
-            formatCurrency(p.baseSalary),
+            formatCurrency(p.grossPay), // Costo es sobre el salario gravable
             formatCurrency(p.employerContributions.isss),
             formatCurrency(p.employerContributions.afp),
-            formatCurrency(p.baseSalary + p.employerContributions.total)
+            formatCurrency(p.grossPay + p.employerContributions.total)
         ]);
         const foot = [[
             'Total General',
-            formatCurrency(payroll.payslips.reduce((acc, p) => acc + p.baseSalary, 0)),
+            formatCurrency(payroll.payslips.reduce((acc, p) => acc + p.grossPay, 0)),
             formatCurrency(payroll.payslips.reduce((acc, p) => acc + p.employerContributions.isss, 0)),
             formatCurrency(payroll.payslips.reduce((acc, p) => acc + p.employerContributions.afp, 0)),
             formatCurrency(payroll.totalCost)
@@ -161,9 +178,9 @@ const UnifiedPayrollModal: React.FC<{ payroll: Payroll; onClose: () => void }> =
                     <thead className="text-xs text-slate-700 uppercase bg-slate-100">
                         <tr>
                             <th className="px-4 py-3">Empleado</th>
-                            <th className="px-4 py-3 text-right">Salario Base</th>
+                            <th className="px-4 py-3 text-right">Salario Devengado</th>
                             <th className="px-4 py-3 text-right">ISSS Patronal (7.5%)</th>
-                            <th className="px-4 py-3 text-right">AFP Patronal (7.75%)</th>
+                            <th className="px-4 py-3 text-right">AFP Patronal (8.75%)</th>
                             <th className="px-4 py-3 text-right">Costo Total Empleado</th>
                         </tr>
                     </thead>
@@ -171,17 +188,17 @@ const UnifiedPayrollModal: React.FC<{ payroll: Payroll; onClose: () => void }> =
                         {payroll.payslips.map(p => (
                             <tr key={p.employeeId} className="border-b hover:bg-slate-50">
                                 <td className="px-4 py-2 font-medium text-slate-900">{p.employeeName}</td>
-                                <td className="px-4 py-2 text-right">{formatCurrency(p.baseSalary)}</td>
+                                <td className="px-4 py-2 text-right">{formatCurrency(p.grossPay)}</td>
                                 <td className="px-4 py-2 text-right">{formatCurrency(p.employerContributions.isss)}</td>
                                 <td className="px-4 py-2 text-right">{formatCurrency(p.employerContributions.afp)}</td>
-                                <td className="px-4 py-2 text-right font-medium text-slate-800">{formatCurrency(p.baseSalary + p.employerContributions.total)}</td>
+                                <td className="px-4 py-2 text-right font-medium text-slate-800">{formatCurrency(p.grossPay + p.employerContributions.total)}</td>
                             </tr>
                         ))}
                     </tbody>
                     <tfoot className="bg-slate-100 font-semibold">
                         <tr>
                             <td className="px-4 py-3 text-slate-800">Total General</td>
-                             <td className="px-4 py-3 text-right">{formatCurrency(payroll.payslips.reduce((acc, p) => acc + p.baseSalary, 0))}</td>
+                             <td className="px-4 py-3 text-right">{formatCurrency(payroll.payslips.reduce((acc, p) => acc + p.grossPay, 0))}</td>
                              <td className="px-4 py-3 text-right">{formatCurrency(payroll.payslips.reduce((acc, p) => acc + p.employerContributions.isss, 0))}</td>
                              <td className="px-4 py-3 text-right">{formatCurrency(payroll.payslips.reduce((acc, p) => acc + p.employerContributions.afp, 0))}</td>
                             <td className="px-4 py-3 text-right text-indigo-600 text-base">{formatCurrency(payroll.totalCost)}</td>

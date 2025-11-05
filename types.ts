@@ -22,6 +22,21 @@ export interface Employee {
   afpType: 'Confía' | 'Crecer';
 }
 
+export type OvertimeRateType = 'day' | 'night' | 'holiday_day' | 'holiday_night';
+
+export interface PayrollNovelty {
+  id: string;
+  employeeId: string;
+  employeeName: string; 
+  date: string; // YYYY-MM-DD
+  type: 'overtime' | 'expense' | 'unpaid_leave';
+  description: string;
+  amount?: number; 
+  overtimeHours?: number; 
+  overtimeRateType?: OvertimeRateType;
+  unpaidLeaveDays?: number;
+}
+
 export interface DeductionDetails {
   isss: number;
   afp: number;
@@ -38,7 +53,10 @@ export interface Payslip {
   employeeId: string;
   employeeName: string;
   baseSalary: number;
-  grossPay: number;
+  overtimePay: number;
+  expenses: number; // Viáticos (non-taxable)
+  otherDeductions: number; // Manual deductions
+  grossPay: number; // Taxable income: baseSalary + overtimePay
   deductions: DeductionDetails;
   employerContributions: EmployerContributions;
   totalDeductions: number;
@@ -53,4 +71,4 @@ export interface Payroll {
   totalCost: number;
 }
 
-export type View = 'dashboard' | 'employees' | 'payroll' | 'users';
+export type View = 'dashboard' | 'employees' | 'payroll' | 'users' | 'novelties';

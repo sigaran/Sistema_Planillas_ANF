@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Employee, Payroll, Payslip, View, DeductionDetails, EmployerContributions, User } from './types';
-import { DashboardIcon, UsersIcon, DocumentReportIcon, PlusIcon, LogoutIcon, ShieldCheckIcon } from './components/icons';
+import { Employee, Payroll, Payslip, View, DeductionDetails, EmployerContributions, User, PayrollNovelty } from './types';
+import { DashboardIcon, UsersIcon, DocumentReportIcon, PlusIcon, LogoutIcon, ShieldCheckIcon, CalendarIcon } from './components/icons';
 import Dashboard from './components/Dashboard';
 import EmployeeList from './components/EmployeeList';
 import EmployeeForm from './components/EmployeeForm';
 import PayrollView from './components/PayrollView';
 import UserManagement from './components/UserManagement';
+import NoveltiesView from './components/NoveltiesView';
 import UserForm from './components/UserForm';
 import Modal from './components/Modal';
 import Login from './components/Login';
@@ -78,6 +79,7 @@ const App: React.FC = () => {
     
     const [users, setUsers] = usePersistentState<User[]>('planillaspro_users', initialUsers);
     const [employees, setEmployees] = usePersistentState<Employee[]>('planillaspro_employees', initialEmployees);
+    const [novelties, setNovelties] = usePersistentState<PayrollNovelty[]>('planillaspro_novelties', []);
     const [payrolls, setPayrolls] = useState<Payroll[]>(() => {
         try {
             const savedPayrolls = localStorage.getItem('planillaspro_payrolls');
@@ -109,6 +111,7 @@ const App: React.FC = () => {
     const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [payrollToDelete, setPayrollToDelete] = useState<Payroll | null>(null);
+    const [noveltyToDelete, setNoveltyToDelete] = useState<PayrollNovelty | null>(null);
 
     // --- Auth Handlers ---
     const handleLoginSuccess = (user: User) => {
@@ -166,6 +169,18 @@ const App: React.FC = () => {
         }
     };
     
+    // --- Novelty Handlers ---
+    const handleSaveNovelty = (novelty: Omit<PayrollNovelty, 'id'>) => {
+        const newNovelty: PayrollNovelty = { ...novelty, id: new Date().toISOString() };
+        setNovelties(prev => [...prev, newNovelty]);
+    };
+    const handleDeleteNovelty = () => {
+        if (noveltyToDelete) {
+            setNovelties(prev => prev.filter(n => n.id !== noveltyToDelete.id));
+            setNoveltyToDelete(null);
+        }
+    };
+
     // --- Payroll Handlers ---
     const handleDeletePayroll = () => {
          if (payrollToDelete) {
@@ -174,26 +189,31 @@ const App: React.FC = () => {
         }
     }
     
-    const calculateDeductions = (salary: number): { deductions: DeductionDetails, totalDeductions: number, netPay: number } => {
+    const calculateDeductions = (salary: number): { deductions: DeductionDetails, totalDeductions: number } => {
         const isssCap = 1000;
         const isssDeduction = Math.min(salary, isssCap) * 0.03;
         const afpDeduction = salary * 0.0725;
-        const taxableIncome = salary - isssDeduction - afpDeduction;
+        const taxableAfterAfpIsss = salary - isssDeduction - afpDeduction;
+        
         let rentaDeduction = 0;
-        if (taxableIncome > 2038.10) rentaDeduction = ((taxableIncome - 2038.10) * 0.30) + 288.57;
-        else if (taxableIncome > 895.24) rentaDeduction = ((taxableIncome - 895.24) * 0.20) + 60.00;
-        else if (taxableIncome > 550.00) rentaDeduction = ((taxableIncome - 550.00) * 0.10) + 17.67;
-        const deductions: DeductionDetails = { isss: isssDeduction, afp: afpDeduction, renta: rentaDeduction };
-        const totalDeductions = isssDeduction + afpDeduction + rentaDeduction;
-        return { deductions, totalDeductions, netPay: salary - totalDeductions };
+        if (taxableAfterAfpIsss > 2038.10) {
+            rentaDeduction = ((taxableAfterAfpIsss - 2038.10) * 0.30) + 288.57;
+        } else if (taxableAfterAfpIsss > 895.24) {
+            rentaDeduction = ((taxableAfterAfpIsss - 895.24) * 0.20) + 60.00;
+        } else if (taxableAfterAfpIsss > 472.00) { // Tramo II
+            rentaDeduction = ((taxableAfterAfpIsss - 472.00) * 0.10) + 17.67;
+        }
+        
+        const deductions: DeductionDetails = { isss: isssDeduction, afp: afpDeduction, renta: Math.max(0, rentaDeduction) };
+        const totalDeductions = isssDeduction + afpDeduction + Math.max(0, rentaDeduction);
+        return { deductions, totalDeductions };
     };
 
     const calculateEmployerContributions = (salary: number): EmployerContributions => {
         const isssContribution = Math.min(salary, 1000) * 0.075;
-        const afpContribution = salary * 0.0775;
+        const afpContribution = salary * 0.0875;
         return { isss: isssContribution, afp: afpContribution, total: isssContribution + afpContribution };
     }
-
 
     const handleRunPayroll = useCallback(() => {
         if (employees.length === 0) {
@@ -201,25 +221,59 @@ const App: React.FC = () => {
             return;
         }
         const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
         const period = now.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
         const periodCapitalized = period.charAt(0).toUpperCase() + period.slice(1);
+
         if (payrolls.some(p => p.period === periodCapitalized)) {
             alert(`La planilla para ${periodCapitalized} ya ha sido ejecutada.`);
             return;
         }
+
         let totalPayrollCost = 0;
         const newPayslips: Payslip[] = employees.map(emp => {
-            const grossPay = emp.baseSalary; 
-            const { deductions, totalDeductions, netPay } = calculateDeductions(grossPay);
+            const employeeNovelties = novelties.filter(n => {
+                const noveltyDate = new Date(n.date);
+                return n.employeeId === emp.id && noveltyDate.getFullYear() === currentYear && noveltyDate.getMonth() === currentMonth;
+            });
+
+            const hourlyRate = emp.baseSalary / 30 / 8;
+            const overtimePay = employeeNovelties
+                .filter(n => n.type === 'overtime')
+                .reduce((total, novelty) => {
+                    const hours = novelty.overtimeHours || 0;
+                    let rateMultiplier = 0;
+                    switch (novelty.overtimeRateType) {
+                        case 'day': rateMultiplier = 2; break;
+                        case 'night': rateMultiplier = 2.25; break;
+                        case 'holiday_day': rateMultiplier = 4; break;
+                        case 'holiday_night': rateMultiplier = 4.5; break;
+                    }
+                    return total + (hours * hourlyRate * rateMultiplier);
+                }, 0);
+
+            const expenses = employeeNovelties.filter(n => n.type === 'expense').reduce((total, n) => total + (n.amount || 0), 0);
+            const otherDeductions = employeeNovelties.filter(n => n.type === 'unpaid_leave').reduce((total, n) => total + (n.amount || 0), 0);
+            
+            const grossPay = emp.baseSalary + overtimePay;
+            const { deductions, totalDeductions } = calculateDeductions(grossPay);
             const employerContributions = calculateEmployerContributions(grossPay);
+            const netPay = grossPay - totalDeductions + expenses - otherDeductions;
             totalPayrollCost += grossPay + employerContributions.total;
-            return { employeeId: emp.id, employeeName: emp.name, baseSalary: emp.baseSalary, grossPay, deductions, employerContributions, totalDeductions, netPay };
+
+            return {
+                employeeId: emp.id, employeeName: emp.name, baseSalary: emp.baseSalary,
+                overtimePay, expenses, otherDeductions, grossPay,
+                deductions, employerContributions, totalDeductions, netPay
+            };
         });
+
         const newPayroll: Payroll = { id: new Date().toISOString(), period: periodCapitalized, date: now, payslips: newPayslips, totalCost: totalPayrollCost };
         setPayrolls(prev => [newPayroll, ...prev]);
         setView('payroll');
-        alert(`Planilla para ${periodCapitalized} ejecutada exitosamente.`);
-    }, [employees, payrolls]);
+        alert(`Planilla para ${periodCapitalized} ejecutada exitosamente con las novedades del mes.`);
+    }, [employees, payrolls, novelties]);
 
 
     const renderView = () => {
@@ -228,6 +282,7 @@ const App: React.FC = () => {
             case 'dashboard': return <Dashboard employees={employees} payrolls={payrolls} />;
             case 'employees': return <EmployeeList employees={employees} onEdit={handleOpenEmployeeModal} onDelete={setEmployeeToDelete} currentUser={currentUser} />;
             case 'payroll': return <PayrollView payrolls={payrolls} onRunPayroll={handleRunPayroll} onDeletePayroll={setPayrollToDelete} currentUser={currentUser} />;
+            case 'novelties': return <NoveltiesView employees={employees} novelties={novelties} onSave={handleSaveNovelty} onDelete={setNoveltyToDelete} currentUser={currentUser} />;
             case 'users': return currentUser.role === 'admin' ? <UserManagement users={users} onEdit={handleOpenUserModal} onDelete={setUserToDelete} currentUser={currentUser} /> : null;
             default: return <Dashboard employees={employees} payrolls={payrolls} />;
         }
@@ -256,6 +311,7 @@ const App: React.FC = () => {
                     <ul>
                         <NavItem currentView={view} targetView="dashboard" onClick={setView} icon={<DashboardIcon className="h-6 w-6" />} label="Dashboard" />
                         <NavItem currentView={view} targetView="employees" onClick={setView} icon={<UsersIcon className="h-6 w-6" />} label="Empleados" />
+                        <NavItem currentView={view} targetView="novelties" onClick={setView} icon={<CalendarIcon className="h-6 w-6" />} label="Novedades" />
                         <NavItem currentView={view} targetView="payroll" onClick={setView} icon={<DocumentReportIcon className="h-6 w-6" />} label="Planillas" />
                         {currentUser.role === 'admin' && (
                             <NavItem currentView={view} targetView="users" onClick={setView} icon={<ShieldCheckIcon className="h-6 w-6" />} label="Usuarios" />
@@ -329,6 +385,16 @@ const App: React.FC = () => {
                     <div className="flex justify-center mt-8 space-x-4">
                         <button onClick={() => setPayrollToDelete(null)} className="px-6 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300">Cancelar</button>
                         <button onClick={handleDeletePayroll} className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Eliminar</button>
+                    </div>
+                </div>
+            </Modal>
+            <Modal isOpen={!!noveltyToDelete} onClose={() => setNoveltyToDelete(null)} title="Confirmar Eliminación">
+                <div className="text-center p-4">
+                    <p className="text-lg text-slate-800 mb-4">¿Estás seguro de que quieres eliminar esta novedad?</p>
+                    <p className="text-sm text-slate-600">"{noveltyToDelete?.description}" para <span className="font-bold">{noveltyToDelete?.employeeName}</span></p>
+                    <div className="flex justify-center mt-8 space-x-4">
+                        <button onClick={() => setNoveltyToDelete(null)} className="px-6 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300">Cancelar</button>
+                        <button onClick={handleDeleteNovelty} className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Eliminar</button>
                     </div>
                 </div>
             </Modal>
