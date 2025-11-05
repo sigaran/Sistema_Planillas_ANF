@@ -1,12 +1,13 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Employee, Payroll, Payslip, View, DeductionDetails, EmployerContributions, User, PayrollNovelty } from './types';
-import { DashboardIcon, UsersIcon, DocumentReportIcon, PlusIcon, LogoutIcon, ShieldCheckIcon, CalendarIcon } from './components/icons';
+import { DashboardIcon, UsersIcon, DocumentReportIcon, PlusIcon, LogoutIcon, ShieldCheckIcon, CalendarIcon, SunIcon } from './components/icons';
 import Dashboard from './components/Dashboard';
 import EmployeeList from './components/EmployeeList';
 import EmployeeForm from './components/EmployeeForm';
 import PayrollView from './components/PayrollView';
 import UserManagement from './components/UserManagement';
 import NoveltiesView from './components/NoveltiesView';
+import VacationsView from './components/VacationsView';
 import UserForm from './components/UserForm';
 import Modal from './components/Modal';
 import Login from './components/Login';
@@ -112,6 +113,7 @@ const App: React.FC = () => {
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [payrollToDelete, setPayrollToDelete] = useState<Payroll | null>(null);
     const [noveltyToDelete, setNoveltyToDelete] = useState<PayrollNovelty | null>(null);
+    const [vacationToReset, setVacationToReset] = useState<Employee | null>(null);
 
     // --- Auth Handlers ---
     const handleLoginSuccess = (user: User) => {
@@ -180,6 +182,50 @@ const App: React.FC = () => {
             setNoveltyToDelete(null);
         }
     };
+    
+    // --- Vacation Handlers ---
+    const handlePayVacation = (employee: Employee) => {
+        const currentYear = new Date().getFullYear();
+        const alreadyPaid = novelties.some(n =>
+            n.employeeId === employee.id &&
+            n.type === 'vacation_pay' &&
+            new Date(n.date).getFullYear() === currentYear
+        );
+
+        if (alreadyPaid) {
+            alert(`Las vacaciones para ${employee.name} ya fueron pagadas este año.`);
+            return;
+        }
+
+        const vacationBonus = (employee.baseSalary / 30) * 15 * 0.30;
+        const vacationNovelty: Omit<PayrollNovelty, 'id'> = {
+            employeeId: employee.id,
+            employeeName: employee.name,
+            date: new Date().toISOString().split('T')[0],
+            type: 'vacation_pay',
+            description: `Bono vacacional año ${currentYear}`,
+            amount: vacationBonus
+        };
+        handleSaveNovelty(vacationNovelty);
+        alert(`Bono vacacional de ${vacationBonus.toLocaleString('es-ES', { style: 'currency', currency: 'USD' })} registrado para ${employee.name}. Se reflejará en la próxima planilla.`);
+    };
+    
+    const handleResetVacation = () => {
+        if (!vacationToReset) return;
+
+        const currentYear = new Date().getFullYear();
+        const noveltyToDelete = novelties.find(n =>
+            n.employeeId === vacationToReset.id &&
+            n.type === 'vacation_pay' &&
+            new Date(n.date).getFullYear() === currentYear
+        );
+
+        if (noveltyToDelete) {
+            setNovelties(prev => prev.filter(n => n.id !== noveltyToDelete.id));
+        }
+        setVacationToReset(null);
+    };
+
 
     // --- Payroll Handlers ---
     const handleDeletePayroll = () => {
@@ -252,11 +298,12 @@ const App: React.FC = () => {
                     }
                     return total + (hours * hourlyRate * rateMultiplier);
                 }, 0);
-
+            
+            const vacationPay = employeeNovelties.filter(n => n.type === 'vacation_pay').reduce((total, n) => total + (n.amount || 0), 0);
             const expenses = employeeNovelties.filter(n => n.type === 'expense').reduce((total, n) => total + (n.amount || 0), 0);
             const otherDeductions = employeeNovelties.filter(n => n.type === 'unpaid_leave').reduce((total, n) => total + (n.amount || 0), 0);
             
-            const grossPay = emp.baseSalary + overtimePay;
+            const grossPay = emp.baseSalary + overtimePay + vacationPay;
             const { deductions, totalDeductions } = calculateDeductions(grossPay);
             const employerContributions = calculateEmployerContributions(grossPay);
             const netPay = grossPay - totalDeductions + expenses - otherDeductions;
@@ -264,7 +311,7 @@ const App: React.FC = () => {
 
             return {
                 employeeId: emp.id, employeeName: emp.name, baseSalary: emp.baseSalary,
-                overtimePay, expenses, otherDeductions, grossPay,
+                overtimePay, vacationPay, expenses, otherDeductions, grossPay,
                 deductions, employerContributions, totalDeductions, netPay
             };
         });
@@ -283,6 +330,7 @@ const App: React.FC = () => {
             case 'employees': return <EmployeeList employees={employees} onEdit={handleOpenEmployeeModal} onDelete={setEmployeeToDelete} currentUser={currentUser} />;
             case 'payroll': return <PayrollView payrolls={payrolls} onRunPayroll={handleRunPayroll} onDeletePayroll={setPayrollToDelete} currentUser={currentUser} />;
             case 'novelties': return <NoveltiesView employees={employees} novelties={novelties} onSave={handleSaveNovelty} onDelete={setNoveltyToDelete} currentUser={currentUser} />;
+            case 'vacations': return <VacationsView employees={employees} novelties={novelties} onPayVacation={handlePayVacation} onResetVacation={setVacationToReset} currentUser={currentUser} />;
             case 'users': return currentUser.role === 'admin' ? <UserManagement users={users} onEdit={handleOpenUserModal} onDelete={setUserToDelete} currentUser={currentUser} /> : null;
             default: return <Dashboard employees={employees} payrolls={payrolls} />;
         }
@@ -312,6 +360,7 @@ const App: React.FC = () => {
                         <NavItem currentView={view} targetView="dashboard" onClick={setView} icon={<DashboardIcon className="h-6 w-6" />} label="Dashboard" />
                         <NavItem currentView={view} targetView="employees" onClick={setView} icon={<UsersIcon className="h-6 w-6" />} label="Empleados" />
                         <NavItem currentView={view} targetView="novelties" onClick={setView} icon={<CalendarIcon className="h-6 w-6" />} label="Novedades" />
+                        <NavItem currentView={view} targetView="vacations" onClick={setView} icon={<SunIcon className="h-6 w-6" />} label="Vacaciones" />
                         <NavItem currentView={view} targetView="payroll" onClick={setView} icon={<DocumentReportIcon className="h-6 w-6" />} label="Planillas" />
                         {currentUser.role === 'admin' && (
                             <NavItem currentView={view} targetView="users" onClick={setView} icon={<ShieldCheckIcon className="h-6 w-6" />} label="Usuarios" />
@@ -395,6 +444,16 @@ const App: React.FC = () => {
                     <div className="flex justify-center mt-8 space-x-4">
                         <button onClick={() => setNoveltyToDelete(null)} className="px-6 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300">Cancelar</button>
                         <button onClick={handleDeleteNovelty} className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Eliminar</button>
+                    </div>
+                </div>
+            </Modal>
+            <Modal isOpen={!!vacationToReset} onClose={() => setVacationToReset(null)} title="Confirmar Restablecimiento">
+                <div className="text-center p-4">
+                    <p className="text-lg text-slate-800 mb-4">¿Estás seguro de que quieres restablecer el pago de vacaciones para <span className="font-bold">{vacationToReset?.name}</span>?</p>
+                    <p className="text-sm text-slate-500">Esto eliminará la novedad de pago de este año y permitirá que se vuelva a pagar.</p>
+                    <div className="flex justify-center mt-8 space-x-4">
+                        <button onClick={() => setVacationToReset(null)} className="px-6 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300">Cancelar</button>
+                        <button onClick={handleResetVacation} className="px-6 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700">Restablecer</button>
                     </div>
                 </div>
             </Modal>

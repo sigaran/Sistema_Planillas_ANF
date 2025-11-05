@@ -32,6 +32,7 @@ const PayslipDetailModal: React.FC<{ payslip: Payslip; payrollPeriod: string; on
             body: [
                 ['Salario Base', formatCurrency(payslip.baseSalary)],
                 ['Pago por Horas Extras', formatCurrency(payslip.overtimePay)],
+                ['Pago de Vacaciones', formatCurrency(payslip.vacationPay)],
             ],
             foot: [[{ content: 'Total Ingresos Gravables (Salario Bruto)', styles: { fontStyle: 'bold' } }, { content: formatCurrency(payslip.grossPay), styles: { fontStyle: 'bold' } }]],
             theme: 'striped',
@@ -86,6 +87,8 @@ const PayslipDetailModal: React.FC<{ payslip: Payslip; payrollPeriod: string; on
                         <div className="text-right">{formatCurrency(payslip.baseSalary)}</div>
                         <div><span className="text-slate-600">Pago por Horas Extras:</span></div>
                         <div className="text-right">{formatCurrency(payslip.overtimePay)}</div>
+                        <div><span className="text-slate-600">Pago de Vacaciones:</span></div>
+                        <div className="text-right">{formatCurrency(payslip.vacationPay)}</div>
                         <div className="font-semibold border-t mt-2 pt-2"><span className="text-slate-600">Total Ingresos Gravables (Bruto):</span></div>
                         <div className="font-semibold border-t mt-2 pt-2 text-right">{formatCurrency(payslip.grossPay)}</div>
                     </div>

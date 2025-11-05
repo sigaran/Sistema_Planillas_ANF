@@ -66,7 +66,18 @@ const NoveltiesView: React.FC<NoveltiesViewProps> = ({ employees, novelties, onS
         }
         
         if (formData.type === 'overtime') {
-            if (formData.overtimeHours <= 0) newErrors.overtimeHours = 'Las horas deben ser mayor a cero.';
+            if (formData.overtimeHours <= 0) {
+                newErrors.overtimeHours = 'Las horas deben ser mayor a cero.';
+            } else {
+                const isDayTime = formData.overtimeRateType === 'day' || formData.overtimeRateType === 'holiday_day';
+                const isNightTime = formData.overtimeRateType === 'night' || formData.overtimeRateType === 'holiday_night';
+
+                if (isDayTime && formData.overtimeHours > 8) {
+                    newErrors.overtimeHours = 'Las horas extras diurnas no pueden exceder las 8 horas.';
+                } else if (isNightTime && formData.overtimeHours > 7) {
+                    newErrors.overtimeHours = 'Las horas extras nocturnas no pueden exceder las 7 horas.';
+                }
+            }
         } else if (formData.type === 'expense') {
             if (formData.amount <= 0) newErrors.amount = 'El monto debe ser mayor a cero.';
             if (!formData.description.trim()) newErrors.description = 'El motivo es obligatorio.';
@@ -197,7 +208,16 @@ const NoveltiesView: React.FC<NoveltiesViewProps> = ({ employees, novelties, onS
                             <>
                                 <div>
                                     <label htmlFor="overtimeHours" className="block text-sm font-medium text-slate-700">Cantidad de Horas</label>
-                                    <input type="number" name="overtimeHours" id="overtimeHours" value={formData.overtimeHours} onChange={handleChange} min="0" className={inputClass('overtimeHours')} />
+                                    <input
+                                        type="number"
+                                        name="overtimeHours"
+                                        id="overtimeHours"
+                                        value={formData.overtimeHours}
+                                        onChange={handleChange}
+                                        min="0"
+                                        max={['day', 'holiday_day'].includes(formData.overtimeRateType) ? 8 : 7}
+                                        className={inputClass('overtimeHours')}
+                                    />
                                     {errors.overtimeHours && <p className="text-red-500 text-xs mt-1">{errors.overtimeHours}</p>}
                                 </div>
                                 <div>
