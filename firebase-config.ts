@@ -15,15 +15,15 @@ const firebaseConfig = {
 };
 
 // A check to ensure the API key is present
-if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "TU_API_KEY_DE_FIREBASE_AQUI") {
-  const errorMessage = "Falta la clave de API de Firebase. Reemplaza 'TU_API_KEY_DE_FIREBASE_AQUI' en firebase-config.ts con tu clave real del proyecto de Firebase.";
+//if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "TU_API_KEY_DE_FIREBASE_AQUI") {
+//  const errorMessage = "Falta la clave de API de Firebase. Reemplaza 'TU_API_KEY_DE_FIREBASE_AQUI' en firebase-config.ts con tu clave real del proyecto de Firebase.";
   // Display a user-friendly error on the page
-  document.body.innerHTML = `<div style="padding: 2rem; text-align: center; font-family: sans-serif; background-color: #FFFBEB; color: #B45309;">
-    <h1 style="font-size: 1.5rem;">Error de Configuración</h1>
-    <p>${errorMessage}</p>
-    </div>`;
-  throw new Error(errorMessage);
-}
+//  document.body.innerHTML = `<div style="padding: 2rem; text-align: center; font-family: sans-serif; background-color: #FFFBEB; color: #B45309;">
+ //   <h1 style="font-size: 1.5rem;">Error de Configuración</h1>
+ //   <p>${errorMessage}</p>
+//    </div>`;
+//  throw new Error(errorMessage);
+//}
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
