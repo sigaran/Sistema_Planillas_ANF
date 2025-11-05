@@ -167,19 +167,26 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
         if (!validateForm()) {
             return;
         }
-        
+    
         const employeeToSave = {
             ...employee,
             nit: String(employee.nit).replace(/[^\d]/g, ''),
             isss: String(employee.isss).replace(/[^\d]/g, ''),
             nup: String(employee.nup).replace(/[^\d]/g, ''),
         };
-
-        onSave({
+    
+        const payload: Employee = {
             ...employeeToSave,
             id: employeeToEdit?.id || new Date().toISOString(),
-            terminationDate: employee.terminationDate || undefined,
-        });
+        };
+    
+        // Si terminationDate es una cadena vacía, queremos eliminarlo del objeto
+        // para que no se guarde en Firestore, en lugar de causar un error al ser 'undefined'.
+        if (!payload.terminationDate) {
+            delete (payload as Partial<Employee>).terminationDate;
+        }
+    
+        onSave(payload);
     };
     
     const inputClass = (fieldName: string) => 

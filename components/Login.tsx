@@ -1,32 +1,55 @@
 import React, { useState } from 'react';
 import Spinner from './Spinner';
 import { User } from '../types';
+import { db } from '../firebase-config';
+import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
 
 interface LoginProps {
     onLoginSuccess: (user: User) => void;
-    users: User[];
 }
 
-const Login: React.FC<LoginProps> = ({ onLoginSuccess, users }) => {
+const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
 
-        setTimeout(() => {
-            const foundUser = users.find(u => u.username === username && u.password === password);
+        try {
+            const q = query(collection(db, "users"), where("username", "==", username));
+            const querySnapshot = await getDocs(q);
+            
+            if (querySnapshot.empty) {
+                setError('Usuario o contraseña incorrectos.');
+                setIsLoading(false);
+                return;
+            }
+
+            let foundUser: User | null = null;
+            querySnapshot.forEach((doc) => {
+                const userData = { ...doc.data(), id: doc.id } as User;
+                if (userData.password === password) {
+                    foundUser = userData;
+                }
+            });
+
             if (foundUser) {
                 onLoginSuccess(foundUser);
             } else {
                 setError('Usuario o contraseña incorrectos.');
             }
-            setIsLoading(false);
-        }, 1000);
+
+        } catch (err) {
+            console.error("Error al iniciar sesión:", err);
+            setError('Ocurrió un error al intentar iniciar sesión.');
+        }
+
+        setIsLoading(false);
     };
 
     return (
@@ -48,7 +71,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, users }) => {
                             onChange={(e) => setUsername(e.target.value)}
                             required
                             className="w-full text-base px-4 py-2 mt-1 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            placeholder="admin o manager"
+                            placeholder="p. ej. admin"
                         />
                     </div>
                     <div>
@@ -62,7 +85,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, users }) => {
                             onChange={(e) => setPassword(e.target.value)}
                             required
                             className="w-full text-base px-4 py-2 mt-1 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            placeholder="password o password123"
+                            placeholder="p. ej. password"
                         />
                     </div>
                     {error && <p className="text-red-500 text-sm text-center">{error}</p>}

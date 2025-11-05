@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { db } from './firebase-config';
+import { collection, onSnapshot, doc, addDoc, setDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { Employee, Payroll, Payslip, View, DeductionDetails, EmployerContributions, User, PayrollNovelty } from './types';
 import { DashboardIcon, UsersIcon, DocumentReportIcon, PlusIcon, LogoutIcon, ShieldCheckIcon, CalendarIcon, SunIcon, GiftIcon, MenuIcon, CloseIcon } from './components/icons';
 import Dashboard from './components/Dashboard';
@@ -12,45 +14,8 @@ import AguinaldoView from './components/AguinaldoView';
 import UserForm from './components/UserForm';
 import Modal from './components/Modal';
 import Login from './components/Login';
+import Spinner from './components/Spinner';
 
-// Dummy Data
-const initialUsers: User[] = [
-    { id: 'user-1', username: 'admin', password: 'password', role: 'admin' },
-    { id: 'user-2', username: 'manager', password: 'password123', role: 'manager' },
-];
-
-const initialEmployees: Employee[] = [
-    { 
-        id: '1', 
-        name: 'Ana Morales', 
-        dui: '01234567-8',
-        nit: '0101-150392-101-1',
-        isss: '123456789',
-        nup: '9876543210',
-        telephone: '7856-3412',
-        position: 'Desarrolladora Frontend Senior', 
-        baseSalary: 1600, 
-        contractType: 'mensual',
-        hireDate: '2022-03-15', 
-        afpType: 'Confía',
-        jobDescription: 'Responsable de crear interfaces de usuario interactivas y responsivas.' 
-    },
-    { 
-        id: '2', 
-        name: 'Carlos Rivera', 
-        dui: '87654321-0',
-        nit: '0202-010891-102-2',
-        isss: '987654321',
-        nup: '0123456789',
-        telephone: '7123-4567',
-        position: 'Ingeniero de Backend', 
-        baseSalary: 1400, 
-        contractType: 'mensual',
-        hireDate: '2021-08-01', 
-        afpType: 'Crecer',
-        jobDescription: 'Mantiene la lógica del servidor, las bases de datos y las APIs.' 
-    },
-];
 
 export interface AguinaldoData {
     employeeId: string;
@@ -63,54 +28,46 @@ const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [view, setView] = useState<View>('dashboard');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // --- State & localStorage Management ---
-    const usePersistentState = <T,>(key: string, initialValue: T) => {
-        const [state, setState] = useState<T>(() => {
-            try {
-                const item = localStorage.getItem(key);
-                return item ? JSON.parse(item) : initialValue;
-            } catch (error) {
-                console.error(`Error al leer ${key} de localStorage`, error);
-                return initialValue;
-            }
+    // --- State Management with Firestore ---
+    const [users, setUsers] = useState<User[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [novelties, setNovelties] = useState<PayrollNovelty[]>([]);
+    const [payrolls, setPayrolls] = useState<Payroll[]>([]);
+    
+    // --- Data Fetching from Firestore ---
+    useEffect(() => {
+        if (!currentUser) return; // Don't fetch if not logged in
+
+        setIsLoading(true);
+        const queries = [
+            onSnapshot(collection(db, "users"), (snapshot) => 
+                setUsers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User)))
+            ),
+            onSnapshot(collection(db, "employees"), (snapshot) => 
+                setEmployees(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee)))
+            ),
+            onSnapshot(collection(db, "novelties"), (snapshot) => 
+                setNovelties(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as PayrollNovelty)))
+            ),
+            onSnapshot(query(collection(db, "payrolls"), orderBy("date", "desc")), (snapshot) => {
+                 setPayrolls(snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    // Firestore timestamp needs to be converted to JS Date
+                    return { ...data, id: doc.id, date: data.date.toDate() } as Payroll;
+                }));
+            }),
+        ];
+        
+        Promise.all(queries.map(q => new Promise(resolve => setTimeout(resolve, 0)))).then(() => {
+            setIsLoading(false);
         });
 
-        useEffect(() => {
-            try {
-                localStorage.setItem(key, JSON.stringify(state));
-            } catch (error) {
-                console.error(`Error al guardar ${key} en localStorage`, error);
-            }
-        }, [key, state]);
+        // Cleanup function to unsubscribe from listeners
+        return () => queries.forEach(unsubscribe => unsubscribe());
 
-        return [state, setState] as const;
-    };
-    
-    const [users, setUsers] = usePersistentState<User[]>('planillaspro_users', initialUsers);
-    const [employees, setEmployees] = usePersistentState<Employee[]>('planillaspro_employees', initialEmployees);
-    const [novelties, setNovelties] = usePersistentState<PayrollNovelty[]>('planillaspro_novelties', []);
-    const [payrolls, setPayrolls] = useState<Payroll[]>(() => {
-        try {
-            const savedPayrolls = localStorage.getItem('planillaspro_payrolls');
-            if (savedPayrolls) {
-                const parsedPayrolls = JSON.parse(savedPayrolls);
-                return parsedPayrolls.map((p: Payroll) => ({ ...p, date: new Date(p.date) }));
-            }
-            return [];
-        } catch (error) {
-            console.error("Error al leer planillas de localStorage", error);
-            return [];
-        }
-    });
-
-     useEffect(() => {
-        try {
-            localStorage.setItem('planillaspro_payrolls', JSON.stringify(payrolls));
-        } catch (error) {
-            console.error("Error al guardar planillas en localStorage", error);
-        }
-    }, [payrolls]);
+    }, [currentUser]);
 
 
     // --- Modal State ---
@@ -143,16 +100,28 @@ const App: React.FC = () => {
         setEmployeeToEdit(null);
         setIsEmployeeModalOpen(false);
     };
-    const handleSaveEmployee = (employee: Employee) => {
-        setEmployees(prev => employee.id in prev.map(e => e.id) 
-            ? prev.map(e => e.id === employee.id ? employee : e)
-            : [...prev, { ...employee, id: new Date().toISOString() }]
-        );
+    const handleSaveEmployee = async (employee: Employee) => {
+        try {
+            if (employeeToEdit) {
+                 await setDoc(doc(db, "employees", employeeToEdit.id), employee);
+            } else {
+                const { id, ...employeeData } = employee;
+                await addDoc(collection(db, "employees"), employeeData);
+            }
+        } catch(e) {
+            console.error("Error guardando empleado: ", e);
+            alert("Hubo un error al guardar el empleado.");
+        }
         handleCloseEmployeeModal();
     };
-    const handleDeleteEmployee = () => {
+    const handleDeleteEmployee = async () => {
         if (employeeToDelete) {
-            setEmployees(prev => prev.filter(e => e.id !== employeeToDelete.id));
+             try {
+                await deleteDoc(doc(db, "employees", employeeToDelete.id));
+             } catch(e) {
+                console.error("Error eliminando empleado: ", e);
+                alert("Hubo un error al eliminar el empleado.");
+             }
             setEmployeeToDelete(null);
         }
     };
@@ -166,28 +135,49 @@ const App: React.FC = () => {
         setUserToEdit(null);
         setIsUserModalOpen(false);
     };
-    const handleSaveUser = (user: User) => {
-         setUsers(prev => user.id in prev.map(u => u.id)
-            ? prev.map(u => u.id === user.id ? user : u)
-            : [...prev, { ...user, id: new Date().toISOString() }]
-        );
+    const handleSaveUser = async (user: User) => {
+         try {
+            if (userToEdit) {
+                 await setDoc(doc(db, "users", userToEdit.id), user);
+            } else {
+                const { id, ...userData } = user;
+                await addDoc(collection(db, "users"), userData);
+            }
+        } catch(e) {
+            console.error("Error guardando usuario: ", e);
+            alert("Hubo un error al guardar el usuario.");
+        }
         handleCloseUserModal();
     };
-    const handleDeleteUser = () => {
+    const handleDeleteUser = async () => {
         if (userToDelete) {
-            setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
+            try {
+                await deleteDoc(doc(db, "users", userToDelete.id));
+            } catch(e) {
+                console.error("Error eliminando usuario: ", e);
+                alert("Hubo un error al eliminar el usuario.");
+            }
             setUserToDelete(null);
         }
     };
     
     // --- Novelty Handlers ---
-    const handleSaveNovelty = (novelty: Omit<PayrollNovelty, 'id'>) => {
-        const newNovelty: PayrollNovelty = { ...novelty, id: new Date().toISOString() };
-        setNovelties(prev => [...prev, newNovelty]);
+    const handleSaveNovelty = async (novelty: Omit<PayrollNovelty, 'id'>) => {
+        try {
+            await addDoc(collection(db, "novelties"), novelty);
+        } catch(e) {
+            console.error("Error guardando novedad: ", e);
+            alert("Hubo un error al guardar la novedad.");
+        }
     };
-    const handleDeleteNovelty = () => {
+    const handleDeleteNovelty = async () => {
         if (noveltyToDelete) {
-            setNovelties(prev => prev.filter(n => n.id !== noveltyToDelete.id));
+            try {
+                await deleteDoc(doc(db, "novelties", noveltyToDelete.id));
+            } catch(e) {
+                console.error("Error eliminando novedad: ", e);
+                alert("Hubo un error al eliminar la novedad.");
+            }
             setNoveltyToDelete(null);
         }
     };
@@ -219,7 +209,7 @@ const App: React.FC = () => {
         alert(`Bono vacacional de ${vacationBonus.toLocaleString('es-ES', { style: 'currency', currency: 'USD' })} registrado para ${employee.name}. Se reflejará en la próxima planilla.`);
     };
     
-    const handleResetVacation = () => {
+    const handleResetVacation = async () => {
         if (!vacationToReset) return;
 
         const currentYear = new Date().getFullYear();
@@ -230,16 +220,20 @@ const App: React.FC = () => {
         );
 
         if (noveltyToDelete) {
-            setNovelties(prev => prev.filter(n => n.id !== noveltyToDelete.id));
+             try {
+                await deleteDoc(doc(db, "novelties", noveltyToDelete.id));
+            } catch(e) {
+                console.error("Error restableciendo vacación: ", e);
+                alert("Hubo un error al restablecer la vacación.");
+            }
         }
         setVacationToReset(null);
     };
     
     // --- Aguinaldo Handlers ---
-    const handleConfirmAguinaldo = (aguinaldoData: AguinaldoData[]) => {
+    const handleConfirmAguinaldo = async (aguinaldoData: AguinaldoData[]) => {
         const currentYear = new Date().getFullYear();
-        const aguinaldoNovelties: PayrollNovelty[] = aguinaldoData.map(data => ({
-            id: `${data.employeeId}-${currentYear}`,
+        const aguinaldoNovelties: Omit<PayrollNovelty, 'id'>[] = aguinaldoData.map(data => ({
             employeeId: data.employeeId,
             employeeName: data.employeeName,
             date: new Date().toISOString().split('T')[0],
@@ -247,15 +241,29 @@ const App: React.FC = () => {
             description: `Aguinaldo ${currentYear}`,
             amount: data.amount,
         }));
-        setNovelties(prev => [...prev, ...aguinaldoNovelties]);
-        alert('Proceso de aguinaldo completado. Los pagos se han generado como novedades y se incluirán en la planilla del mes en curso.');
+        
+        try {
+            // Batch write would be better for production, but this is fine for now
+            for (const novelty of aguinaldoNovelties) {
+                await addDoc(collection(db, "novelties"), novelty);
+            }
+            alert('Proceso de aguinaldo completado. Los pagos se han generado como novedades y se incluirán en la planilla del mes en curso.');
+        } catch(e) {
+            console.error("Error guardando aguinaldos: ", e);
+            alert("Hubo un error al guardar los aguinaldos.");
+        }
     };
 
 
     // --- Payroll Handlers ---
-    const handleDeletePayroll = () => {
+    const handleDeletePayroll = async () => {
          if (payrollToDelete) {
-            setPayrolls(prev => prev.filter(p => p.id !== payrollToDelete.id));
+             try {
+                await deleteDoc(doc(db, "payrolls", payrollToDelete.id));
+             } catch(e) {
+                 console.error("Error eliminando planilla: ", e);
+                 alert("Hubo un error al eliminar la planilla.");
+             }
             setPayrollToDelete(null);
         }
     }
@@ -286,7 +294,7 @@ const App: React.FC = () => {
         return { isss: isssContribution, afp: afpContribution, total: isssContribution + afpContribution };
     }
 
-    const handleRunPayroll = useCallback(() => {
+    const handleRunPayroll = useCallback(async () => {
         if (employees.length === 0) {
             alert("No hay empleados para ejecutar la planilla.");
             return;
@@ -327,11 +335,9 @@ const App: React.FC = () => {
             const expenses = employeeNovelties.filter(n => n.type === 'expense').reduce((total, n) => total + (n.amount || 0), 0);
             const otherDeductions = employeeNovelties.filter(n => n.type === 'unpaid_leave').reduce((total, n) => total + (n.amount || 0), 0);
             
-            // Base for ISSS/AFP doesn't include aguinaldo
             const baseForSocialSecurity = emp.baseSalary + overtimePay + vacationPay;
             
             const aguinaldoIsTaxable = emp.baseSalary > 1500;
-            // grossPay is the taxable income
             let grossPay = emp.baseSalary + overtimePay + vacationPay;
             if (aguinaldoIsTaxable && aguinaldoPay > 0) {
                 grossPay += aguinaldoPay;
@@ -352,15 +358,22 @@ const App: React.FC = () => {
             };
         });
 
-        const newPayroll: Payroll = { id: new Date().toISOString(), period: periodCapitalized, date: now, payslips: newPayslips, totalCost: totalPayrollCost };
-        setPayrolls(prev => [newPayroll, ...prev]);
-        setView('payroll');
-        alert(`Planilla para ${periodCapitalized} ejecutada exitosamente con las novedades del mes.`);
+        const newPayroll: Omit<Payroll, 'id'> = { period: periodCapitalized, date: now, payslips: newPayslips, totalCost: totalPayrollCost };
+        
+        try {
+            await addDoc(collection(db, "payrolls"), newPayroll);
+            setView('payroll');
+            alert(`Planilla para ${periodCapitalized} ejecutada exitosamente con las novedades del mes.`);
+        } catch(e) {
+            console.error("Error ejecutando planilla: ", e);
+            alert("Hubo un error al ejecutar la planilla.");
+        }
+
     }, [employees, payrolls, novelties]);
 
 
     const renderView = () => {
-        if (!currentUser) return null;
+        if (!currentUser || isLoading) return null;
         switch (view) {
             case 'dashboard': return <Dashboard employees={employees} payrolls={payrolls} />;
             case 'employees': return <EmployeeList employees={employees} onEdit={handleOpenEmployeeModal} onDelete={setEmployeeToDelete} currentUser={currentUser} />;
@@ -390,12 +403,11 @@ const App: React.FC = () => {
     );
 
     if (!currentUser) {
-        return <Login onLoginSuccess={handleLoginSuccess} users={users} />;
+        return <Login onLoginSuccess={handleLoginSuccess} />;
     }
 
     return (
         <div className="relative min-h-screen md:flex bg-slate-100">
-            {/* Overlay for mobile */}
             {isSidebarOpen && (
                 <div
                     className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
@@ -443,7 +455,13 @@ const App: React.FC = () => {
                     <MenuIcon className="h-6 w-6" />
                 </button>
                 
-                {view === 'employees' && (
+                {isLoading && (
+                    <div className="flex justify-center items-center h-full">
+                        <Spinner size="lg" />
+                    </div>
+                )}
+                
+                {view === 'employees' && !isLoading && (
                     <div className="flex justify-between items-center mb-6">
                         <h1 className="text-3xl font-bold text-slate-800">Gestión de Empleados</h1>
                         <button onClick={() => handleOpenEmployeeModal(null)} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center">
@@ -451,7 +469,7 @@ const App: React.FC = () => {
                         </button>
                     </div>
                 )}
-                 {view === 'users' && currentUser.role === 'admin' && (
+                 {view === 'users' && currentUser.role === 'admin' && !isLoading && (
                     <div className="flex justify-between items-center mb-6">
                         <h1 className="text-3xl font-bold text-slate-800">Gestión de Usuarios</h1>
                         <button onClick={() => handleOpenUserModal(null)} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center">
@@ -514,7 +532,7 @@ const App: React.FC = () => {
             <Modal isOpen={!!vacationToReset} onClose={() => setVacationToReset(null)} title="Confirmar Restablecimiento">
                 <div className="text-center p-4">
                     <p className="text-lg text-slate-800 mb-4">¿Estás seguro de que quieres restablecer el pago de vacaciones para <span className="font-bold">{vacationToReset?.name}</span>?</p>
-                    <p className="text-sm text-slate-500">Esto eliminará la novedad de pago de este año y permitirá que se vuelva a pagar.</p>
+                    <p className="text-sm text-slate-500">Esta eliminará la novedad de pago de este año y permitirá que se vuelva a pagar.</p>
                     <div className="flex justify-center mt-8 space-x-4">
                         <button onClick={() => setVacationToReset(null)} className="px-6 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300">Cancelar</button>
                         <button onClick={handleResetVacation} className="px-6 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700">Restablecer</button>
