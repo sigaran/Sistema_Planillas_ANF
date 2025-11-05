@@ -164,6 +164,9 @@ const NoveltiesView: React.FC<NoveltiesViewProps> = ({ employees, novelties, onS
                 return `${novelty.description} - ${novelty.amount?.toLocaleString('es-ES', { style: 'currency', currency: 'USD' })}`;
             case 'unpaid_leave':
                 return `${novelty.unpaidLeaveDays} día(s) - Descuento: ${novelty.amount?.toLocaleString('es-ES', { style: 'currency', currency: 'USD' })}`;
+            case 'vacation_pay':
+            case 'aguinaldo':
+                return `${novelty.description} - ${novelty.amount?.toLocaleString('es-ES', { style: 'currency', currency: 'USD' })}`;
         }
     }
     
@@ -171,7 +174,9 @@ const NoveltiesView: React.FC<NoveltiesViewProps> = ({ employees, novelties, onS
         overtime: <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">Hora Extra</span>,
         expense: <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Viático</span>,
         unpaid_leave: <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">Permiso s/ Sueldo</span>,
-    }
+        vacation_pay: <span className="px-2 py-1 text-xs font-medium rounded-full bg-teal-100 text-teal-800">Vacación</span>,
+        aguinaldo: <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">Aguinaldo</span>,
+    };
 
     return (
         <div>
