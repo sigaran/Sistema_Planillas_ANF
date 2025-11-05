@@ -1,7 +1,7 @@
 export interface User {
   id: string;
   username: string;
-  password; // En una app real, esto sería un hash
+  password: string; // En una app real, esto sería un hash
   role: 'admin' | 'manager';
 }
 

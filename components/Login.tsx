@@ -3,6 +3,7 @@ import Spinner from './Spinner';
 import { User } from '../types';
 import { db } from '../firebase-config';
 import { collection, query, where, getDocs } from "firebase/firestore";
+import { hashPassword } from '../utils/hashing';
 
 
 interface LoginProps {
@@ -30,10 +31,12 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 return;
             }
 
+            const enteredPasswordHash = hashPassword(password);
             let foundUser: User | null = null;
             querySnapshot.forEach((doc) => {
                 const userData = { ...doc.data(), id: doc.id } as User;
-                if (userData.password === password) {
+                // Compare the hashed entered password with the stored hash
+                if (userData.password === enteredPasswordHash) {
                     foundUser = userData;
                 }
             });

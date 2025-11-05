@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
+import { hashPassword } from '../utils/hashing';
 
 interface UserFormProps {
     onSave: (user: User) => void;
@@ -8,7 +9,7 @@ interface UserFormProps {
 }
 
 const UserForm: React.FC<UserFormProps> = ({ onSave, onClose, userToEdit }) => {
-    const [user, setUser] = useState<Omit<User, 'id'>>({
+    const [user, setUser] = useState<Omit<User, 'id' | 'password'> & { password?: string }>({
         username: '',
         password: '',
         role: 'manager',
@@ -19,8 +20,8 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onClose, userToEdit }) => {
         if (userToEdit) {
             setUser({
                 username: userToEdit.username,
-                password: userToEdit.password,
                 role: userToEdit.role,
+                password: '', // Leave password blank for editing
             });
         }
     }, [userToEdit]);
@@ -28,7 +29,10 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onClose, userToEdit }) => {
     const validate = (): boolean => {
         const newErrors: { [key: string]: string } = {};
         if (!user.username.trim()) newErrors.username = 'El nombre de usuario es obligatorio.';
-        if (!user.password) newErrors.password = 'La contraseña es obligatoria.';
+        // Password is only required when creating a new user
+        if (!userToEdit && !user.password) {
+            newErrors.password = 'La contraseña es obligatoria.';
+        }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -42,10 +46,24 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onClose, userToEdit }) => {
         e.preventDefault();
         if (!validate()) return;
         
-        onSave({
-            ...user,
+        // Prepare the user data to be saved
+        const userPayload: User = {
             id: userToEdit?.id || new Date().toISOString(),
-        });
+            username: user.username,
+            role: user.role,
+            // Determine which password to save
+            password: '', 
+        };
+
+        if (user.password) {
+            // If a new password was entered, hash it
+            userPayload.password = hashPassword(user.password);
+        } else if (userToEdit) {
+            // If editing and no new password, keep the old one
+            userPayload.password = userToEdit.password;
+        }
+        
+        onSave(userPayload);
     };
 
     const inputClass = (fieldName: string) => 
@@ -59,8 +77,18 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onClose, userToEdit }) => {
                 {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
             </div>
             <div>
-                <label htmlFor="password" className="block text-sm font-medium text-slate-700">Contraseña</label>
-                <input type="password" name="password" id="password" value={user.password} onChange={handleChange} required className={inputClass('password')} />
+                <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+                    Contraseña {userToEdit && <span className="text-slate-500 text-xs">(Dejar en blanco para no cambiar)</span>}
+                </label>
+                <input 
+                    type="password" 
+                    name="password" 
+                    id="password" 
+                    value={user.password || ''} 
+                    onChange={handleChange} 
+                    required={!userToEdit} // Required only when creating
+                    className={inputClass('password')} 
+                />
                 {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
             </div>
             <div>
