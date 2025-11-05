@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Employee, Payroll, Payslip, View, DeductionDetails, EmployerContributions, User, PayrollNovelty } from './types';
-import { DashboardIcon, UsersIcon, DocumentReportIcon, PlusIcon, LogoutIcon, ShieldCheckIcon, CalendarIcon, SunIcon } from './components/icons';
+import { DashboardIcon, UsersIcon, DocumentReportIcon, PlusIcon, LogoutIcon, ShieldCheckIcon, CalendarIcon, SunIcon, GiftIcon } from './components/icons';
 import Dashboard from './components/Dashboard';
 import EmployeeList from './components/EmployeeList';
 import EmployeeForm from './components/EmployeeForm';
@@ -8,6 +8,7 @@ import PayrollView from './components/PayrollView';
 import UserManagement from './components/UserManagement';
 import NoveltiesView from './components/NoveltiesView';
 import VacationsView from './components/VacationsView';
+import AguinaldoView from './components/AguinaldoView';
 import UserForm from './components/UserForm';
 import Modal from './components/Modal';
 import Login from './components/Login';
@@ -28,7 +29,7 @@ const initialEmployees: Employee[] = [
         nup: '9876543210',
         telephone: '7856-3412',
         position: 'Desarrolladora Frontend Senior', 
-        baseSalary: 6250, 
+        baseSalary: 1600, 
         contractType: 'mensual',
         hireDate: '2022-03-15', 
         afpType: 'Confía',
@@ -43,13 +44,20 @@ const initialEmployees: Employee[] = [
         nup: '0123456789',
         telephone: '7123-4567',
         position: 'Ingeniero de Backend', 
-        baseSalary: 6667, 
+        baseSalary: 1400, 
         contractType: 'mensual',
         hireDate: '2021-08-01', 
         afpType: 'Crecer',
         jobDescription: 'Mantiene la lógica del servidor, las bases de datos y las APIs.' 
     },
 ];
+
+export interface AguinaldoData {
+    employeeId: string;
+    employeeName: string;
+    amount: number;
+    isTaxable: boolean;
+}
 
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -225,6 +233,22 @@ const App: React.FC = () => {
         }
         setVacationToReset(null);
     };
+    
+    // --- Aguinaldo Handlers ---
+    const handleConfirmAguinaldo = (aguinaldoData: AguinaldoData[]) => {
+        const currentYear = new Date().getFullYear();
+        const aguinaldoNovelties: PayrollNovelty[] = aguinaldoData.map(data => ({
+            id: `${data.employeeId}-${currentYear}`,
+            employeeId: data.employeeId,
+            employeeName: data.employeeName,
+            date: new Date().toISOString().split('T')[0],
+            type: 'aguinaldo',
+            description: `Aguinaldo ${currentYear}`,
+            amount: data.amount,
+        }));
+        setNovelties(prev => [...prev, ...aguinaldoNovelties]);
+        alert('Proceso de aguinaldo completado. Los pagos se han generado como novedades y se incluirán en la planilla del mes en curso.');
+    };
 
 
     // --- Payroll Handlers ---
@@ -285,33 +309,44 @@ const App: React.FC = () => {
             });
 
             const hourlyRate = emp.baseSalary / 30 / 8;
-            const overtimePay = employeeNovelties
-                .filter(n => n.type === 'overtime')
-                .reduce((total, novelty) => {
-                    const hours = novelty.overtimeHours || 0;
-                    let rateMultiplier = 0;
-                    switch (novelty.overtimeRateType) {
-                        case 'day': rateMultiplier = 2; break;
-                        case 'night': rateMultiplier = 2.25; break;
-                        case 'holiday_day': rateMultiplier = 4; break;
-                        case 'holiday_night': rateMultiplier = 4.5; break;
-                    }
-                    return total + (hours * hourlyRate * rateMultiplier);
-                }, 0);
+            const overtimePay = employeeNovelties.filter(n => n.type === 'overtime').reduce((total, n) => {
+                const hours = n.overtimeHours || 0;
+                let rateMultiplier = 0;
+                switch (n.overtimeRateType) {
+                    case 'day': rateMultiplier = 2; break;
+                    case 'night': rateMultiplier = 2.25; break;
+                    case 'holiday_day': rateMultiplier = 4; break;
+                    case 'holiday_night': rateMultiplier = 4.5; break;
+                }
+                return total + (hours * hourlyRate * rateMultiplier);
+            }, 0);
             
             const vacationPay = employeeNovelties.filter(n => n.type === 'vacation_pay').reduce((total, n) => total + (n.amount || 0), 0);
+            const aguinaldoPay = employeeNovelties.filter(n => n.type === 'aguinaldo').reduce((total, n) => total + (n.amount || 0), 0);
             const expenses = employeeNovelties.filter(n => n.type === 'expense').reduce((total, n) => total + (n.amount || 0), 0);
             const otherDeductions = employeeNovelties.filter(n => n.type === 'unpaid_leave').reduce((total, n) => total + (n.amount || 0), 0);
             
-            const grossPay = emp.baseSalary + overtimePay + vacationPay;
+            // Base for ISSS/AFP doesn't include aguinaldo
+            const baseForSocialSecurity = emp.baseSalary + overtimePay + vacationPay;
+            
+            const aguinaldoIsTaxable = emp.baseSalary > 1500;
+            // grossPay is the taxable income
+            let grossPay = emp.baseSalary + overtimePay + vacationPay;
+            if (aguinaldoIsTaxable && aguinaldoPay > 0) {
+                grossPay += aguinaldoPay;
+            }
+
             const { deductions, totalDeductions } = calculateDeductions(grossPay);
-            const employerContributions = calculateEmployerContributions(grossPay);
-            const netPay = grossPay - totalDeductions + expenses - otherDeductions;
-            totalPayrollCost += grossPay + employerContributions.total;
+            const employerContributions = calculateEmployerContributions(baseForSocialSecurity);
+            
+            const totalEarnings = emp.baseSalary + overtimePay + vacationPay + aguinaldoPay + expenses;
+            const netPay = totalEarnings - totalDeductions - otherDeductions;
+            
+            totalPayrollCost += baseForSocialSecurity + employerContributions.total + (aguinaldoPay > 0 ? aguinaldoPay : 0);
 
             return {
                 employeeId: emp.id, employeeName: emp.name, baseSalary: emp.baseSalary,
-                overtimePay, vacationPay, expenses, otherDeductions, grossPay,
+                overtimePay, vacationPay, aguinaldoPay, aguinaldoIsTaxable, expenses, otherDeductions, grossPay,
                 deductions, employerContributions, totalDeductions, netPay
             };
         });
@@ -331,6 +366,7 @@ const App: React.FC = () => {
             case 'payroll': return <PayrollView payrolls={payrolls} onRunPayroll={handleRunPayroll} onDeletePayroll={setPayrollToDelete} currentUser={currentUser} />;
             case 'novelties': return <NoveltiesView employees={employees} novelties={novelties} onSave={handleSaveNovelty} onDelete={setNoveltyToDelete} currentUser={currentUser} />;
             case 'vacations': return <VacationsView employees={employees} novelties={novelties} onPayVacation={handlePayVacation} onResetVacation={setVacationToReset} currentUser={currentUser} />;
+            case 'aguinaldo': return <AguinaldoView employees={employees} novelties={novelties} onConfirmAguinaldo={handleConfirmAguinaldo} currentUser={currentUser} />;
             case 'users': return currentUser.role === 'admin' ? <UserManagement users={users} onEdit={handleOpenUserModal} onDelete={setUserToDelete} currentUser={currentUser} /> : null;
             default: return <Dashboard employees={employees} payrolls={payrolls} />;
         }
@@ -361,6 +397,7 @@ const App: React.FC = () => {
                         <NavItem currentView={view} targetView="employees" onClick={setView} icon={<UsersIcon className="h-6 w-6" />} label="Empleados" />
                         <NavItem currentView={view} targetView="novelties" onClick={setView} icon={<CalendarIcon className="h-6 w-6" />} label="Novedades" />
                         <NavItem currentView={view} targetView="vacations" onClick={setView} icon={<SunIcon className="h-6 w-6" />} label="Vacaciones" />
+                        <NavItem currentView={view} targetView="aguinaldo" onClick={setView} icon={<GiftIcon className="h-6 w-6" />} label="Aguinaldo" />
                         <NavItem currentView={view} targetView="payroll" onClick={setView} icon={<DocumentReportIcon className="h-6 w-6" />} label="Planillas" />
                         {currentUser.role === 'admin' && (
                             <NavItem currentView={view} targetView="users" onClick={setView} icon={<ShieldCheckIcon className="h-6 w-6" />} label="Usuarios" />

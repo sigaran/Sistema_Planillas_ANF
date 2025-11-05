@@ -29,7 +29,7 @@ export interface PayrollNovelty {
   employeeId: string;
   employeeName: string; 
   date: string; // YYYY-MM-DD
-  type: 'overtime' | 'expense' | 'unpaid_leave' | 'vacation_pay';
+  type: 'overtime' | 'expense' | 'unpaid_leave' | 'vacation_pay' | 'aguinaldo';
   description: string;
   amount?: number; 
   overtimeHours?: number; 
@@ -55,9 +55,11 @@ export interface Payslip {
   baseSalary: number;
   overtimePay: number;
   vacationPay: number;
+  aguinaldoPay: number;
+  aguinaldoIsTaxable?: boolean;
   expenses: number; // Viáticos (non-taxable)
   otherDeductions: number; // Manual deductions
-  grossPay: number; // Taxable income: baseSalary + overtimePay + vacationPay
+  grossPay: number; // Taxable income: baseSalary + overtimePay + vacationPay + (aguinaldo if taxable)
   deductions: DeductionDetails;
   employerContributions: EmployerContributions;
   totalDeductions: number;
@@ -72,4 +74,4 @@ export interface Payroll {
   totalCost: number;
 }
 
-export type View = 'dashboard' | 'employees' | 'payroll' | 'users' | 'novelties' | 'vacations';
+export type View = 'dashboard' | 'employees' | 'payroll' | 'users' | 'novelties' | 'vacations' | 'aguinaldo';

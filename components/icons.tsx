@@ -79,3 +79,9 @@ export const UndoIcon: React.FC<IconProps> = ({ className }) => (
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
     </svg>
 );
+
+export const GiftIcon: React.FC<IconProps> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 012-2h2a2 2 0 012 2v2m-6 0V6a2 2 0 00-2-2H8a2 2 0 00-2 2v2m6 0h2a2 2 0 012 2v2h-4v-4m-6 0h2a2 2 0 002-2v-2H6v4m6 13H6a2 2 0 01-2-2V10a2 2 0 012-2h12a2 2 0 012 2v9a2 2 0 01-2 2h-6" />
+    </svg>
+);
