@@ -5,7 +5,7 @@ import { getFirestore } from "firebase/firestore";
 // Your web app's Firebase configuration.
 // The API key is loaded from a secure environment variable, while other values are public.
 const firebaseConfig = {
-  apiKey: process.env.API_KEY, // Uses the environment secret 'API_KEY'
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY, // Uses the environment secret 'VITE_FIREBASE_API_KEY'
   authDomain: "sistema-de-planillas.firebaseapp.com",
   projectId: "sistema-de-planillas",
   storageBucket: "sistema-de-planillas.appspot.com",
