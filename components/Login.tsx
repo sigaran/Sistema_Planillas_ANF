@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Spinner from './Spinner';
 import { User } from '../types';
 import { db } from '../firebase-config';
-import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, query, where, getDocs } from "firebase/firestore";
 
 
 interface LoginProps {

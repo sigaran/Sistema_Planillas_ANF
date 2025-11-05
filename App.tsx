@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { db } from './firebase-config';
-import { collection, onSnapshot, doc, addDoc, setDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, onSnapshot, doc, addDoc, setDoc, deleteDoc, query, orderBy } from "firebase/firestore";
 import { Employee, Payroll, Payslip, View, DeductionDetails, EmployerContributions, User, PayrollNovelty } from './types';
 import { DashboardIcon, UsersIcon, DocumentReportIcon, PlusIcon, LogoutIcon, ShieldCheckIcon, CalendarIcon, SunIcon, GiftIcon, MenuIcon, CloseIcon } from './components/icons';
 import Dashboard from './components/Dashboard';
