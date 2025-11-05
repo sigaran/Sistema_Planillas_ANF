@@ -6,7 +6,7 @@ import { getFirestore } from "firebase/firestore";
 // This information is considered public and is safe to be in the client-side code.
 // Security is managed by Firebase Security Rules.
 const firebaseConfig = {
-  apiKey: "AIzaSyALlp8GNWu2o8338GXLcp1evuzChfMVgZc", // Reemplaza esto con tu clave real de Firebase
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY, // Reemplaza esto con tu clave real de Firebase
   authDomain: "sistema-de-planillas.firebaseapp.com",
   projectId: "sistema-de-planillas",
   storageBucket: "sistema-de-planillas.appspot.com",
