@@ -1,5 +1,5 @@
 {
-  "name": "Sistema de Planillas Pro",
+  "name": "Sistema de Planillas",
   "description": "Una aplicación de React para gestionar empleados y procesar planillas.",
   "requestFramePermissions": []
 }

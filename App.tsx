@@ -464,11 +464,14 @@ const App: React.FC = () => {
                     isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 }`}
             >
-                <div className="text-2xl font-bold text-indigo-600 mb-8 p-3 flex justify-between items-center">
-                    PlanillasPro
-                    <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-slate-500 hover:text-slate-800">
-                        <CloseIcon className="h-6 w-6" />
-                    </button>
+                <div className="p-3 mb-8">
+                    <div className="flex justify-between items-center">
+                        <h1 className="text-2xl font-bold text-indigo-600">Sistema de Planillas</h1>
+                        <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-slate-500 hover:text-slate-800">
+                            <CloseIcon className="h-6 w-6" />
+                        </button>
+                    </div>
+                    <p className="text-sm text-slate-500 mt-1">Grupo Corporativo Castillo</p>
                 </div>
                 <nav className="flex-grow">
                     <ul>

@@ -60,8 +60,9 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         <div className="flex items-center justify-center min-h-screen bg-slate-100">
             <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-lg">
                 <div className="text-center">
-                    <h1 className="text-3xl font-bold text-indigo-600">PlanillasPro</h1>
-                    <p className="mt-2 text-slate-500">Inicia sesión para gestionar tu sistema</p>
+                    <h1 className="text-3xl font-bold text-indigo-600">Sistema de Planillas</h1>
+                    <p className="mt-1 text-slate-600 font-medium">Grupo Corporativo Castillo</p>
+                    <p className="mt-4 text-slate-500">Inicia sesión para gestionar el sistema</p>
                 </div>
                 <form className="space-y-6" onSubmit={handleLogin}>
                     <div>
