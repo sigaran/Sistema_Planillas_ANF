@@ -6,9 +6,10 @@ interface UserFormProps {
     onSave: (user: User) => void;
     onClose: () => void;
     userToEdit: User | null;
+    allUsers: User[];
 }
 
-const UserForm: React.FC<UserFormProps> = ({ onSave, onClose, userToEdit }) => {
+const UserForm: React.FC<UserFormProps> = ({ onSave, onClose, userToEdit, allUsers }) => {
     const [user, setUser] = useState<Omit<User, 'id' | 'password'> & { password?: string }>({
         username: '',
         password: '',
@@ -28,7 +29,17 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onClose, userToEdit }) => {
 
     const validate = (): boolean => {
         const newErrors: { [key: string]: string } = {};
-        if (!user.username.trim()) newErrors.username = 'El nombre de usuario es obligatorio.';
+        if (!user.username.trim()) {
+            newErrors.username = 'El nombre de usuario es obligatorio.';
+        } else {
+            const usernameExists = allUsers.some(existingUser => 
+                existingUser.username.toLowerCase() === user.username.toLowerCase() && (!userToEdit || existingUser.id !== userToEdit.id)
+            );
+            if (usernameExists) {
+                newErrors.username = 'Este nombre de usuario ya está en uso.';
+            }
+        }
+        
         // Password is only required when creating a new user
         if (!userToEdit && !user.password) {
             newErrors.password = 'La contraseña es obligatoria.';

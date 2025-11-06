@@ -5,9 +5,10 @@ interface EmployeeFormProps {
     onSave: (employee: Employee) => void;
     onClose: () => void;
     employeeToEdit: Employee | null;
+    allEmployees: Employee[];
 }
 
-const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeToEdit }) => {
+const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeToEdit, allEmployees }) => {
     const [employee, setEmployee] = useState<Omit<Employee, 'id'>>({
         name: '',
         dui: '',
@@ -62,12 +63,20 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
         setErrors({});
     }, [employeeToEdit]);
 
-    const validateField = (name: string, value: any): string => {
+    const validateField = (name: keyof Employee, value: any): string => {
+        const checkDuplicate = (fieldName: keyof Employee, fieldValue: any, errorMessage: string) => {
+            if (!fieldValue) return ''; // Don't check empty values
+            const isDuplicate = allEmployees.some(
+                emp => emp[fieldName] && emp[fieldName].toString().trim().toLowerCase() === fieldValue.toString().trim().toLowerCase() && emp.id !== employeeToEdit?.id
+            );
+            return isDuplicate ? errorMessage : '';
+        };
+
         switch (name) {
             case 'dui':
                 if (!value) return 'El DUI es obligatorio.';
                 if (!/^\d{8}-\d{1}$/.test(value)) return 'Formato de DUI inválido. Debe ser 00000000-0.';
-                return '';
+                return checkDuplicate('dui', value, 'Este DUI ya está registrado.');
             case 'telephone':
                 if (!value) return 'El teléfono es obligatorio.';
                 if (!/^\d{4}-\d{4}$/.test(value)) return 'Formato de teléfono inválido. Debe ser 0000-0000.';
@@ -75,18 +84,18 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
             case 'nit':
                 if (!value) return 'El NIT es obligatorio.';
                 if (/[^\d]/.test(value)) return 'El NIT solo debe contener números.';
-                return '';
+                return checkDuplicate('nit', value, 'Este NIT ya está registrado.');
             case 'isss':
                 if (!value) return 'El número de ISSS es obligatorio.';
                 if (/[^\d]/.test(value)) return 'El ISSS solo debe contener números.';
-                return '';
+                return checkDuplicate('isss', value, 'Este número de ISSS ya está registrado.');
             case 'nup':
                 if (!value) return 'El NUP es obligatorio.';
                 if (/[^\d]/.test(value)) return 'El NUP solo debe contener números.';
-                return '';
+                return checkDuplicate('nup', value, 'Este NUP ya está registrado.');
             case 'name':
                 if (!value.trim()) return 'El nombre es obligatorio.';
-                return '';
+                return checkDuplicate('name', value, 'Este nombre de empleado ya está registrado.');
             case 'position':
                 if (!value.trim()) return 'El puesto es obligatorio.';
                 return '';
@@ -134,7 +143,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        const error = validateField(name, value);
+        const error = validateField(name as keyof Employee, value);
         setErrors(prev => ({ ...prev, [name]: error }));
     };
 
@@ -150,7 +159,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
         }
 
         for (const key in employeeDataToValidate) {
-            const error = validateField(key, (employeeDataToValidate as any)[key]);
+            const error = validateField(key as keyof Employee, (employeeDataToValidate as any)[key]);
             if (error) {
                 newErrors[key] = error;
                 isValid = false;

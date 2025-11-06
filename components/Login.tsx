@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import Spinner from './Spinner';
 import { User } from '../types';
 import { db } from '../firebase-config';
-import { collection, query, where, getDocs } from "firebase/firestore";
 import { hashPassword } from '../utils/hashing';
 
 
@@ -22,8 +21,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         setIsLoading(true);
 
         try {
-            const q = query(collection(db, "users"), where("username", "==", username));
-            const querySnapshot = await getDocs(q);
+            // FIX: Use Firebase v8 compat syntax for query
+            const q = db.collection("users").where("username", "==", username);
+            // FIX: Use Firebase v8 compat syntax for getDocs
+            const querySnapshot = await q.get();
             
             if (querySnapshot.empty) {
                 setError('Usuario o contraseña incorrectos.');

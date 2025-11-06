@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { db } from './firebase-config';
-import { collection, onSnapshot, doc, addDoc, setDoc, deleteDoc, query, orderBy } from "firebase/firestore";
 import { Employee, Payroll, Payslip, View, DeductionDetails, EmployerContributions, User, PayrollNovelty } from './types';
 import { DashboardIcon, UsersIcon, DocumentReportIcon, PlusIcon, LogoutIcon, ShieldCheckIcon, CalendarIcon, SunIcon, GiftIcon, MenuIcon, CloseIcon } from './components/icons';
 import Dashboard from './components/Dashboard';
@@ -42,16 +41,20 @@ const App: React.FC = () => {
 
         setIsLoading(true);
         const queries = [
-            onSnapshot(collection(db, "users"), (snapshot) => 
+            // FIX: Use Firebase v8 compat syntax for onSnapshot
+            db.collection("users").onSnapshot((snapshot) => 
                 setUsers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User)))
             ),
-            onSnapshot(collection(db, "employees"), (snapshot) => 
+            // FIX: Use Firebase v8 compat syntax for onSnapshot
+            db.collection("employees").onSnapshot((snapshot) => 
                 setEmployees(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee)))
             ),
-            onSnapshot(collection(db, "novelties"), (snapshot) => 
+            // FIX: Use Firebase v8 compat syntax for onSnapshot
+            db.collection("novelties").onSnapshot((snapshot) => 
                 setNovelties(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as PayrollNovelty)))
             ),
-            onSnapshot(query(collection(db, "payrolls"), orderBy("date", "desc")), (snapshot) => {
+            // FIX: Use Firebase v8 compat syntax for query with onSnapshot
+            db.collection("payrolls").orderBy("date", "desc").onSnapshot((snapshot) => {
                  setPayrolls(snapshot.docs.map(doc => {
                     const data = doc.data();
                     // Firestore timestamp needs to be converted to JS Date
@@ -101,12 +104,34 @@ const App: React.FC = () => {
         setIsEmployeeModalOpen(false);
     };
     const handleSaveEmployee = async (employee: Employee) => {
+        const checkForDuplicate = (field: keyof Employee, value: string, label: string): boolean => {
+            const normalizedValue = value.trim().toLowerCase();
+            const duplicate = employees.find(emp => {
+                if (employeeToEdit && emp.id === employeeToEdit.id) return false;
+                const empValue = emp[field] ? String(emp[field]).trim().toLowerCase() : '';
+                return empValue === normalizedValue;
+            });
+            if (duplicate) {
+                alert(`El ${label} "${value}" ya está registrado para el empleado ${duplicate.name}.`);
+                return true;
+            }
+            return false;
+        };
+
+        if (checkForDuplicate('name', employee.name, 'Nombre')) return;
+        if (checkForDuplicate('dui', employee.dui, 'DUI')) return;
+        if (checkForDuplicate('nit', employee.nit, 'NIT')) return;
+        if (checkForDuplicate('isss', employee.isss, 'ISSS')) return;
+        if (checkForDuplicate('nup', employee.nup, 'NUP')) return;
+
         try {
             if (employeeToEdit) {
-                 await setDoc(doc(db, "employees", employeeToEdit.id), employee);
+                 // FIX: Use Firebase v8 compat syntax for setDoc
+                 await db.collection("employees").doc(employeeToEdit.id).set(employee);
             } else {
                 const { id, ...employeeData } = employee;
-                await addDoc(collection(db, "employees"), employeeData);
+                // FIX: Use Firebase v8 compat syntax for addDoc
+                await db.collection("employees").add(employeeData);
             }
         } catch(e) {
             console.error("Error guardando empleado: ", e);
@@ -117,7 +142,8 @@ const App: React.FC = () => {
     const handleDeleteEmployee = async () => {
         if (employeeToDelete) {
              try {
-                await deleteDoc(doc(db, "employees", employeeToDelete.id));
+                // FIX: Use Firebase v8 compat syntax for deleteDoc
+                await db.collection("employees").doc(employeeToDelete.id).delete();
              } catch(e) {
                 console.error("Error eliminando empleado: ", e);
                 alert("Hubo un error al eliminar el empleado.");
@@ -136,12 +162,23 @@ const App: React.FC = () => {
         setIsUserModalOpen(false);
     };
     const handleSaveUser = async (user: User) => {
-         try {
+        const usernameExists = users.some(existingUser => 
+            existingUser.username.toLowerCase() === user.username.toLowerCase() && (!userToEdit || existingUser.id !== userToEdit.id)
+        );
+
+        if (usernameExists) {
+            alert(`El nombre de usuario "${user.username}" ya existe. Por favor, elige otro.`);
+            return; // Stop the save operation
+        }
+
+        try {
             if (userToEdit) {
-                 await setDoc(doc(db, "users", userToEdit.id), user);
+                 // FIX: Use Firebase v8 compat syntax for setDoc
+                 await db.collection("users").doc(userToEdit.id).set(user);
             } else {
                 const { id, ...userData } = user;
-                await addDoc(collection(db, "users"), userData);
+                // FIX: Use Firebase v8 compat syntax for addDoc
+                await db.collection("users").add(userData);
             }
         } catch(e) {
             console.error("Error guardando usuario: ", e);
@@ -152,7 +189,8 @@ const App: React.FC = () => {
     const handleDeleteUser = async () => {
         if (userToDelete) {
             try {
-                await deleteDoc(doc(db, "users", userToDelete.id));
+                // FIX: Use Firebase v8 compat syntax for deleteDoc
+                await db.collection("users").doc(userToDelete.id).delete();
             } catch(e) {
                 console.error("Error eliminando usuario: ", e);
                 alert("Hubo un error al eliminar el usuario.");
@@ -164,7 +202,8 @@ const App: React.FC = () => {
     // --- Novelty Handlers ---
     const handleSaveNovelty = async (novelty: Omit<PayrollNovelty, 'id'>) => {
         try {
-            await addDoc(collection(db, "novelties"), novelty);
+            // FIX: Use Firebase v8 compat syntax for addDoc
+            await db.collection("novelties").add(novelty);
         } catch(e) {
             console.error("Error guardando novedad: ", e);
             alert("Hubo un error al guardar la novedad.");
@@ -173,7 +212,8 @@ const App: React.FC = () => {
     const handleDeleteNovelty = async () => {
         if (noveltyToDelete) {
             try {
-                await deleteDoc(doc(db, "novelties", noveltyToDelete.id));
+                // FIX: Use Firebase v8 compat syntax for deleteDoc
+                await db.collection("novelties").doc(noveltyToDelete.id).delete();
             } catch(e) {
                 console.error("Error eliminando novedad: ", e);
                 alert("Hubo un error al eliminar la novedad.");
@@ -221,7 +261,8 @@ const App: React.FC = () => {
 
         if (noveltyToDelete) {
              try {
-                await deleteDoc(doc(db, "novelties", noveltyToDelete.id));
+                // FIX: Use Firebase v8 compat syntax for deleteDoc
+                await db.collection("novelties").doc(noveltyToDelete.id).delete();
             } catch(e) {
                 console.error("Error restableciendo vacación: ", e);
                 alert("Hubo un error al restablecer la vacación.");
@@ -245,7 +286,8 @@ const App: React.FC = () => {
         try {
             // Batch write would be better for production, but this is fine for now
             for (const novelty of aguinaldoNovelties) {
-                await addDoc(collection(db, "novelties"), novelty);
+                // FIX: Use Firebase v8 compat syntax for addDoc
+                await db.collection("novelties").add(novelty);
             }
             alert('Proceso de aguinaldo completado. Los pagos se han generado como novedades y se incluirán en la planilla del mes en curso.');
         } catch(e) {
@@ -259,7 +301,8 @@ const App: React.FC = () => {
     const handleDeletePayroll = async () => {
          if (payrollToDelete) {
              try {
-                await deleteDoc(doc(db, "payrolls", payrollToDelete.id));
+                // FIX: Use Firebase v8 compat syntax for deleteDoc
+                await db.collection("payrolls").doc(payrollToDelete.id).delete();
              } catch(e) {
                  console.error("Error eliminando planilla: ", e);
                  alert("Hubo un error al eliminar la planilla.");
@@ -361,7 +404,8 @@ const App: React.FC = () => {
         const newPayroll: Omit<Payroll, 'id'> = { period: periodCapitalized, date: now, payslips: newPayslips, totalCost: totalPayrollCost };
         
         try {
-            await addDoc(collection(db, "payrolls"), newPayroll);
+            // FIX: Use Firebase v8 compat syntax for addDoc
+            await db.collection("payrolls").add(newPayroll);
             setView('payroll');
             alert(`Planilla para ${periodCapitalized} ejecutada exitosamente con las novedades del mes.`);
         } catch(e) {
@@ -482,10 +526,10 @@ const App: React.FC = () => {
             
             {/* --- Modals --- */}
             <Modal isOpen={isEmployeeModalOpen} onClose={handleCloseEmployeeModal} title={employeeToEdit ? 'Editar Empleado' : 'Añadir Nuevo Empleado'}>
-                <EmployeeForm onSave={handleSaveEmployee} onClose={handleCloseEmployeeModal} employeeToEdit={employeeToEdit} />
+                <EmployeeForm onSave={handleSaveEmployee} onClose={handleCloseEmployeeModal} employeeToEdit={employeeToEdit} allEmployees={employees} />
             </Modal>
              <Modal isOpen={isUserModalOpen} onClose={handleCloseUserModal} title={userToEdit ? 'Editar Usuario' : 'Añadir Nuevo Usuario'}>
-                <UserForm onSave={handleSaveUser} onClose={handleCloseUserModal} userToEdit={userToEdit} />
+                <UserForm onSave={handleSaveUser} onClose={handleCloseUserModal} userToEdit={userToEdit} allUsers={users} />
             </Modal>
 
             {/* --- Confirmation Modals --- */}
