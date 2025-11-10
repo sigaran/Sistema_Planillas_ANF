@@ -339,8 +339,9 @@ const App: React.FC = () => {
     }
 
     const handleRunPayroll = useCallback(async () => {
-        if (employees.length === 0) {
-            alert("No hay empleados para ejecutar la planilla.");
+        const activeEmployees = employees.filter(emp => emp.status === 'active' || !emp.status);
+        if (activeEmployees.length === 0) {
+            alert("No hay empleados activos para ejecutar la planilla.");
             return;
         }
         const now = new Date();
@@ -355,7 +356,7 @@ const App: React.FC = () => {
         }
 
         let totalPayrollCost = 0;
-        const newPayslips: Payslip[] = employees.map(emp => {
+        const newPayslips: Payslip[] = activeEmployees.map(emp => {
             const employeeNovelties = novelties.filter(n => {
                 const noveltyDate = new Date(n.date);
                 return n.employeeId === emp.id && noveltyDate.getFullYear() === currentYear && noveltyDate.getMonth() === currentMonth;

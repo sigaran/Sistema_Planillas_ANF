@@ -16,6 +16,7 @@ const VacationsView: React.FC<VacationsViewProps> = ({ employees, novelties, onP
         const oneYearInMs = 365 * 24 * 60 * 60 * 1000;
         const today = new Date();
         return employees.filter(emp => {
+            if (emp.status === 'inactive') return false;
             const hireDate = new Date(emp.hireDate);
             return (today.getTime() - hireDate.getTime()) >= oneYearInMs;
         });

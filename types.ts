@@ -20,6 +20,7 @@ export interface Employee {
   hireDate: string;
   terminationDate?: string;
   afpType: 'Confía' | 'Crecer';
+  status: 'active' | 'inactive';
 }
 
 export type OvertimeRateType = 'day' | 'night' | 'holiday_day' | 'holiday_night';

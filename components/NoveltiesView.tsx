@@ -26,6 +26,8 @@ const NoveltiesView: React.FC<NoveltiesViewProps> = ({ employees, novelties, onS
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [viewDate, setViewDate] = useState(new Date());
 
+    const activeEmployees = useMemo(() => employees.filter(emp => emp.status === 'active' || !emp.status), [employees]);
+
     const today = new Date();
     const maxDate = today.toISOString().split('T')[0];
     const maxMonth = today.toISOString().slice(0, 7);
@@ -189,7 +191,7 @@ const NoveltiesView: React.FC<NoveltiesViewProps> = ({ employees, novelties, onS
                             <label htmlFor="employeeId" className="block text-sm font-medium text-slate-700">Empleado</label>
                             <select name="employeeId" id="employeeId" value={formData.employeeId} onChange={handleChange} className={inputClass('employeeId')}>
                                 <option value="">-- Seleccione --</option>
-                                {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                                {activeEmployees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
                             </select>
                             {errors.employeeId && <p className="text-red-500 text-xs mt-1">{errors.employeeId}</p>}
                         </div>

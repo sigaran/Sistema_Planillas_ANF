@@ -34,7 +34,9 @@ const AguinaldoView: React.FC<AguinaldoViewProps> = ({ employees, novelties, onC
         const currentYear = today.getFullYear();
         const calculationDate = new Date(currentYear, 11, 12); // December 12
 
-        const results: AguinaldoData[] = employees.map(emp => {
+        const activeEmployees = employees.filter(emp => emp.status === 'active' || !emp.status);
+
+        const results: AguinaldoData[] = activeEmployees.map(emp => {
             const hireDate = new Date(emp.hireDate);
             const dailySalary = emp.baseSalary / 30;
 

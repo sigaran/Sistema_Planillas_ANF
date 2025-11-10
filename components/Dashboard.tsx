@@ -20,18 +20,20 @@ const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode }
 );
 
 const Dashboard: React.FC<DashboardProps> = ({ employees, payrolls }) => {
-    const totalEmployees = employees.length;
+    const activeEmployees = employees.filter(emp => emp.status === 'active' || !emp.status);
+    
+    const totalEmployees = activeEmployees.length;
     const latestPayroll = payrolls.length > 0 ? payrolls[0] : null;
     const totalPayrollCost = latestPayroll?.totalCost.toLocaleString('es-ES', { style: 'currency', currency: 'USD' }) || '$0.00';
-    const averageSalary = employees.length > 0
-        ? (employees.reduce((acc, emp) => acc + emp.baseSalary, 0) / employees.length).toLocaleString('es-ES', { style: 'currency', currency: 'USD' })
+    const averageSalary = activeEmployees.length > 0
+        ? (activeEmployees.reduce((acc, emp) => acc + emp.baseSalary, 0) / activeEmployees.length).toLocaleString('es-ES', { style: 'currency', currency: 'USD' })
         : '$0.00';
 
     return (
         <div>
             <h1 className="text-3xl font-bold text-slate-800 mb-6">Panel de Control</h1>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <StatCard title="Total de Empleados" value={totalEmployees.toString()} icon={<UsersIcon className="h-6 w-6" />} />
+                <StatCard title="Total de Empleados Activos" value={totalEmployees.toString()} icon={<UsersIcon className="h-6 w-6" />} />
                 <StatCard title="Costo Última Planilla" value={totalPayrollCost} icon={<DocumentReportIcon className="h-6 w-6" />} />
                 <StatCard title="Salario Mensual Promedio" value={averageSalary} icon={<span className="text-xl font-bold">$</span>} />
             </div>

@@ -23,6 +23,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
         hireDate: new Date().toISOString().split('T')[0],
         terminationDate: '',
         afpType: 'Confía',
+        status: 'active',
     });
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
@@ -42,6 +43,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
                 hireDate: employeeToEdit.hireDate,
                 terminationDate: employeeToEdit.terminationDate || '',
                 afpType: employeeToEdit.afpType,
+                status: employeeToEdit.status || 'active',
             });
         } else {
              setEmployee({
@@ -58,6 +60,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
                 hireDate: new Date().toISOString().split('T')[0],
                 terminationDate: '',
                 afpType: 'Confía',
+                status: 'active',
             });
         }
         setErrors({});
@@ -112,7 +115,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        let processedValue: string | number = value;
+        let processedValue: string | number | 'active' | 'inactive' = value;
 
         if (['nit', 'isss', 'nup'].includes(name)) {
             processedValue = value.replace(/[^\d]/g, '');
@@ -134,7 +137,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
             processedValue = parseFloat(value) || 0;
         }
 
-        setEmployee(prev => ({ ...prev, [name]: processedValue }));
+        setEmployee(prev => ({ ...prev, [name]: processedValue as any }));
 
         if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: '' }));
@@ -274,7 +277,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
 
              <hr/>
              
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label htmlFor="hireDate" className="block text-sm font-medium text-slate-700">Fecha de Contratación</label>
                     <input type="date" name="hireDate" id="hireDate" value={employee.hireDate} onChange={handleChange} onBlur={handleBlur} required className={inputClass('hireDate')} />
@@ -283,6 +286,13 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSave, onClose, employeeTo
                 <div>
                     <label htmlFor="terminationDate" className="block text-sm font-medium text-slate-700">Fecha de Salida (Opcional)</label>
                     <input type="date" name="terminationDate" id="terminationDate" value={employee.terminationDate} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                </div>
+                 <div>
+                    <label htmlFor="status" className="block text-sm font-medium text-slate-700">Estado</label>
+                    <select name="status" id="status" value={employee.status} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <option value="active">Activo</option>
+                        <option value="inactive">Inactivo</option>
+                    </select>
                 </div>
             </div>
 
