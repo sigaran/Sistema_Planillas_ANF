@@ -318,13 +318,14 @@ const App: React.FC = () => {
         const taxableAfterAfpIsss = salary - isssDeduction - afpDeduction;
         
         let rentaDeduction = 0;
-        if (taxableAfterAfpIsss > 2038.10) {
+        // Calculation based on the new tax table provided
+        if (taxableAfterAfpIsss > 2038.10) {         // Tramo IV
             rentaDeduction = ((taxableAfterAfpIsss - 2038.10) * 0.30) + 288.57;
-        } else if (taxableAfterAfpIsss > 895.24) {
+        } else if (taxableAfterAfpIsss > 895.24) {   // Tramo III
             rentaDeduction = ((taxableAfterAfpIsss - 895.24) * 0.20) + 60.00;
-        } else if (taxableAfterAfpIsss > 472.00) { // Tramo II
-            rentaDeduction = ((taxableAfterAfpIsss - 472.00) * 0.10) + 17.67;
-        }
+        } else if (taxableAfterAfpIsss > 550.00) {   // Tramo II
+            rentaDeduction = ((taxableAfterAfpIsss - 550.00) * 0.10) + 17.67;
+        } // Tramo I has no retention, so rentaDeduction remains 0
         
         const deductions: DeductionDetails = { isss: isssDeduction, afp: afpDeduction, renta: Math.max(0, rentaDeduction) };
         const totalDeductions = isssDeduction + afpDeduction + Math.max(0, rentaDeduction);
