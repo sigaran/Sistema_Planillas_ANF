@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { db } from './firebase-config';
 import { Employee, Payroll, Payslip, View, DeductionDetails, EmployerContributions, User, PayrollNovelty } from './types';
 import { DashboardIcon, UsersIcon, DocumentReportIcon, PlusIcon, LogoutIcon, ShieldCheckIcon, CalendarIcon, SunIcon, GiftIcon, MenuIcon, CloseIcon } from './components/icons';
@@ -35,6 +35,9 @@ const App: React.FC = () => {
     const [novelties, setNovelties] = useState<PayrollNovelty[]>([]);
     const [payrolls, setPayrolls] = useState<Payroll[]>([]);
     
+    // --- Search State ---
+    const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
+
     // --- Data Fetching from Firestore ---
     useEffect(() => {
         if (!currentUser) return; // Don't fetch if not logged in
@@ -71,6 +74,18 @@ const App: React.FC = () => {
         return () => queries.forEach(unsubscribe => unsubscribe());
 
     }, [currentUser]);
+    
+    const filteredEmployees = useMemo(() => {
+        if (!employeeSearchTerm.trim()) {
+            return employees;
+        }
+        const lowercasedTerm = employeeSearchTerm.toLowerCase();
+        return employees.filter(emp =>
+            emp.name.toLowerCase().includes(lowercasedTerm) ||
+            emp.dui.includes(lowercasedTerm) ||
+            emp.position.toLowerCase().includes(lowercasedTerm)
+        );
+    }, [employees, employeeSearchTerm]);
 
 
     // --- Modal State ---
@@ -422,7 +437,7 @@ const App: React.FC = () => {
         if (!currentUser || isLoading) return null;
         switch (view) {
             case 'dashboard': return <Dashboard employees={employees} payrolls={payrolls} />;
-            case 'employees': return <EmployeeList employees={employees} onEdit={handleOpenEmployeeModal} onDelete={setEmployeeToDelete} currentUser={currentUser} />;
+            case 'employees': return <EmployeeList employees={filteredEmployees} onEdit={handleOpenEmployeeModal} onDelete={setEmployeeToDelete} currentUser={currentUser} />;
             case 'payroll': return <PayrollView payrolls={payrolls} onRunPayroll={handleRunPayroll} onDeletePayroll={setPayrollToDelete} currentUser={currentUser} />;
             case 'novelties': return <NoveltiesView employees={employees} novelties={novelties} onSave={handleSaveNovelty} onDelete={setNoveltyToDelete} currentUser={currentUser} />;
             case 'vacations': return <VacationsView employees={employees} novelties={novelties} onPayVacation={handlePayVacation} onResetVacation={setVacationToReset} currentUser={currentUser} />;
@@ -511,11 +526,29 @@ const App: React.FC = () => {
                 )}
                 
                 {view === 'employees' && !isLoading && (
-                    <div className="flex justify-between items-center mb-6">
-                        <h1 className="text-3xl font-bold text-slate-800">Gestión de Empleados</h1>
-                        <button onClick={() => handleOpenEmployeeModal(null)} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center">
-                            <PlusIcon className="h-5 w-5 mr-2"/>Añadir Empleado
-                        </button>
+                    <div>
+                        <div className="flex justify-between items-center mb-6">
+                            <h1 className="text-3xl font-bold text-slate-800">Gestión de Empleados</h1>
+                            <button onClick={() => handleOpenEmployeeModal(null)} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center">
+                                <PlusIcon className="h-5 w-5 mr-2"/>Añadir Empleado
+                            </button>
+                        </div>
+                        <div className="mb-4">
+                            <div className="relative">
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                                    <svg className="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none">
+                                        <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                                    </svg>
+                                </span>
+                                <input
+                                    type="text"
+                                    placeholder="Buscar por nombre, DUI o puesto..."
+                                    value={employeeSearchTerm}
+                                    onChange={e => setEmployeeSearchTerm(e.target.value)}
+                                    className="w-full py-2 pl-10 pr-4 text-slate-700 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring focus:ring-opacity-40 focus:ring-indigo-500"
+                                />
+                            </div>
+                        </div>
                     </div>
                 )}
                  {view === 'users' && currentUser.role === 'admin' && !isLoading && (

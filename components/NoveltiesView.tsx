@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Employee, PayrollNovelty, OvertimeRateType, User } from '../types';
 import { PlusIcon, TrashIcon } from './icons';
 
@@ -26,11 +26,41 @@ const NoveltiesView: React.FC<NoveltiesViewProps> = ({ employees, novelties, onS
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [viewDate, setViewDate] = useState(new Date());
 
-    const activeEmployees = useMemo(() => employees.filter(emp => emp.status === 'active' || !emp.status), [employees]);
+    // New state for searchable dropdown
+    const [employeeSearch, setEmployeeSearch] = useState('');
+    const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+    const searchContainerRef = useRef<HTMLDivElement>(null);
+
+    const activeEmployees = useMemo(() => employees.filter(emp => emp.status === 'active' || !emp.status).sort((a, b) => a.name.localeCompare(b.name)), [employees]);
 
     const today = new Date();
     const maxDate = today.toISOString().split('T')[0];
     const maxMonth = today.toISOString().slice(0, 7);
+
+    // Sync search input with form data
+    useEffect(() => {
+        if (formData.employeeId) {
+            const selected = activeEmployees.find(e => e.id === formData.employeeId);
+            if (selected) {
+                setEmployeeSearch(selected.name);
+            }
+        } else {
+            setEmployeeSearch('');
+        }
+    }, [formData.employeeId, activeEmployees]);
+
+    // Click outside handler
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+                setIsDropdownVisible(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
 
     useEffect(() => {
         if (formData.type === 'unpaid_leave' && formData.employeeId && formData.unpaidLeaveDays > 0) {
@@ -153,6 +183,35 @@ const NoveltiesView: React.FC<NoveltiesViewProps> = ({ employees, novelties, onS
             }));
         }
     };
+    
+    const filteredEmployeesForDropdown = useMemo(() => {
+        const selectedEmployee = activeEmployees.find(e => e.id === formData.employeeId);
+        if (selectedEmployee && selectedEmployee.name.toLowerCase() === employeeSearch.toLowerCase()) {
+            return [];
+        }
+
+        if (!employeeSearch) {
+            return activeEmployees;
+        }
+
+        return activeEmployees.filter(emp =>
+            emp.name.toLowerCase().includes(employeeSearch.toLowerCase())
+        );
+    }, [employeeSearch, activeEmployees, formData.employeeId]);
+
+    const handleEmployeeSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setEmployeeSearch(e.target.value);
+        if (formData.employeeId) {
+            setFormData(prev => ({ ...prev, employeeId: '' }));
+        }
+        setIsDropdownVisible(true);
+    };
+
+    const selectEmployee = (employee: Employee) => {
+        setFormData(prev => ({ ...prev, employeeId: employee.id }));
+        setEmployeeSearch(employee.name);
+        setIsDropdownVisible(false);
+    };
 
     const inputClass = (fieldName: string) =>
         `mt-1 block w-full px-3 py-2 bg-white border ${errors[fieldName] ? 'border-red-500' : 'border-slate-300'} rounded-md shadow-sm focus:outline-none ${errors[fieldName] ? 'focus:ring-red-500 focus:border-red-500' : 'focus:ring-indigo-500 focus:border-indigo-500'} sm:text-sm`;
@@ -187,13 +246,38 @@ const NoveltiesView: React.FC<NoveltiesViewProps> = ({ employees, novelties, onS
                 <div className="lg:col-span-1 bg-white p-6 rounded-lg shadow-md">
                     <h2 className="text-xl font-semibold mb-4">Registrar Novedad</h2>
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label htmlFor="employeeId" className="block text-sm font-medium text-slate-700">Empleado</label>
-                            <select name="employeeId" id="employeeId" value={formData.employeeId} onChange={handleChange} className={inputClass('employeeId')}>
-                                <option value="">-- Seleccione --</option>
-                                {activeEmployees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                            </select>
+                        <div ref={searchContainerRef} className="relative">
+                            <label htmlFor="employee-search" className="block text-sm font-medium text-slate-700">Empleado</label>
+                            <input
+                                id="employee-search"
+                                type="text"
+                                value={employeeSearch}
+                                onChange={handleEmployeeSearch}
+                                onFocus={() => setIsDropdownVisible(true)}
+                                placeholder="-- Busque y seleccione --"
+                                autoComplete="off"
+                                className={inputClass('employeeId')}
+                            />
                             {errors.employeeId && <p className="text-red-500 text-xs mt-1">{errors.employeeId}</p>}
+                            {isDropdownVisible && (
+                                <div className="absolute z-10 w-full bg-white border border-slate-300 rounded-md mt-1 max-h-60 overflow-y-auto shadow-lg">
+                                    {filteredEmployeesForDropdown.length > 0 ? (
+                                        <ul>
+                                            {filteredEmployeesForDropdown.map(emp => (
+                                                <li
+                                                    key={emp.id}
+                                                    className="px-3 py-2 cursor-pointer hover:bg-indigo-100"
+                                                    onClick={() => selectEmployee(emp)}
+                                                >
+                                                    {emp.name}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="px-3 py-2 text-sm text-slate-500">No se encontraron empleados.</p>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         <div>
