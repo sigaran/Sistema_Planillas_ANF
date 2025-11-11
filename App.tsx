@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { db } from './firebase-config';
 import { Employee, Payroll, Payslip, View, DeductionDetails, EmployerContributions, User, PayrollNovelty } from './types';
@@ -35,32 +36,36 @@ const App: React.FC = () => {
     const [novelties, setNovelties] = useState<PayrollNovelty[]>([]);
     const [payrolls, setPayrolls] = useState<Payroll[]>([]);
     
-    // --- Search State ---
+    // --- UI State ---
+    const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
     const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
+
+    // --- Notification Timeout ---
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => setNotification(null), 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
 
     // --- Data Fetching from Firestore ---
     useEffect(() => {
-        if (!currentUser) return; // Don't fetch if not logged in
+        if (!currentUser) return;
 
         setIsLoading(true);
         const queries = [
-            // FIX: Use Firebase v8 compat syntax for onSnapshot
             db.collection("users").onSnapshot((snapshot) => 
                 setUsers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User)))
             ),
-            // FIX: Use Firebase v8 compat syntax for onSnapshot
             db.collection("employees").onSnapshot((snapshot) => 
                 setEmployees(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee)))
             ),
-            // FIX: Use Firebase v8 compat syntax for onSnapshot
             db.collection("novelties").onSnapshot((snapshot) => 
                 setNovelties(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as PayrollNovelty)))
             ),
-            // FIX: Use Firebase v8 compat syntax for query with onSnapshot
             db.collection("payrolls").orderBy("date", "desc").onSnapshot((snapshot) => {
                  setPayrolls(snapshot.docs.map(doc => {
                     const data = doc.data();
-                    // Firestore timestamp needs to be converted to JS Date
                     return { ...data, id: doc.id, date: data.date.toDate() } as Payroll;
                 }));
             }),
@@ -70,7 +75,6 @@ const App: React.FC = () => {
             setIsLoading(false);
         });
 
-        // Cleanup function to unsubscribe from listeners
         return () => queries.forEach(unsubscribe => unsubscribe());
 
     }, [currentUser]);
@@ -127,7 +131,7 @@ const App: React.FC = () => {
                 return empValue === normalizedValue;
             });
             if (duplicate) {
-                alert(`El ${label} "${value}" ya está registrado para el empleado ${duplicate.name}.`);
+                setNotification({ message: `El ${label} "${value}" ya está registrado.`, type: 'error' });
                 return true;
             }
             return false;
@@ -141,27 +145,27 @@ const App: React.FC = () => {
 
         try {
             if (employeeToEdit) {
-                 // FIX: Use Firebase v8 compat syntax for setDoc
                  await db.collection("employees").doc(employeeToEdit.id).set(employee);
+                 setNotification({ message: 'Empleado actualizado exitosamente.', type: 'success' });
             } else {
                 const { id, ...employeeData } = employee;
-                // FIX: Use Firebase v8 compat syntax for addDoc
                 await db.collection("employees").add(employeeData);
+                setNotification({ message: 'Empleado creado exitosamente.', type: 'success' });
             }
+            handleCloseEmployeeModal();
         } catch(e) {
             console.error("Error guardando empleado: ", e);
-            alert("Hubo un error al guardar el empleado.");
+            setNotification({ message: 'Hubo un error al guardar el empleado.', type: 'error' });
         }
-        handleCloseEmployeeModal();
     };
     const handleDeleteEmployee = async () => {
         if (employeeToDelete) {
              try {
-                // FIX: Use Firebase v8 compat syntax for deleteDoc
                 await db.collection("employees").doc(employeeToDelete.id).delete();
+                setNotification({ message: `Empleado "${employeeToDelete.name}" eliminado.`, type: 'success' });
              } catch(e) {
                 console.error("Error eliminando empleado: ", e);
-                alert("Hubo un error al eliminar el empleado.");
+                setNotification({ message: 'Hubo un error al eliminar el empleado.', type: 'error' });
              }
             setEmployeeToDelete(null);
         }
@@ -182,33 +186,33 @@ const App: React.FC = () => {
         );
 
         if (usernameExists) {
-            alert(`El nombre de usuario "${user.username}" ya existe. Por favor, elige otro.`);
-            return; // Stop the save operation
+            setNotification({ message: `El usuario "${user.username}" ya existe.`, type: 'error' });
+            return;
         }
 
         try {
             if (userToEdit) {
-                 // FIX: Use Firebase v8 compat syntax for setDoc
                  await db.collection("users").doc(userToEdit.id).set(user);
+                 setNotification({ message: 'Usuario actualizado exitosamente.', type: 'success' });
             } else {
                 const { id, ...userData } = user;
-                // FIX: Use Firebase v8 compat syntax for addDoc
                 await db.collection("users").add(userData);
+                setNotification({ message: 'Usuario creado exitosamente.', type: 'success' });
             }
+            handleCloseUserModal();
         } catch(e) {
             console.error("Error guardando usuario: ", e);
-            alert("Hubo un error al guardar el usuario.");
+            setNotification({ message: 'Hubo un error al guardar el usuario.', type: 'error' });
         }
-        handleCloseUserModal();
     };
     const handleDeleteUser = async () => {
         if (userToDelete) {
             try {
-                // FIX: Use Firebase v8 compat syntax for deleteDoc
                 await db.collection("users").doc(userToDelete.id).delete();
+                setNotification({ message: `Usuario "${userToDelete.username}" eliminado.`, type: 'success' });
             } catch(e) {
                 console.error("Error eliminando usuario: ", e);
-                alert("Hubo un error al eliminar el usuario.");
+                setNotification({ message: 'Hubo un error al eliminar el usuario.', type: 'error' });
             }
             setUserToDelete(null);
         }
@@ -217,21 +221,21 @@ const App: React.FC = () => {
     // --- Novelty Handlers ---
     const handleSaveNovelty = async (novelty: Omit<PayrollNovelty, 'id'>) => {
         try {
-            // FIX: Use Firebase v8 compat syntax for addDoc
             await db.collection("novelties").add(novelty);
+            setNotification({ message: 'Novedad guardada exitosamente.', type: 'success' });
         } catch(e) {
             console.error("Error guardando novedad: ", e);
-            alert("Hubo un error al guardar la novedad.");
+            setNotification({ message: 'Hubo un error al guardar la novedad.', type: 'error' });
         }
     };
     const handleDeleteNovelty = async () => {
         if (noveltyToDelete) {
             try {
-                // FIX: Use Firebase v8 compat syntax for deleteDoc
                 await db.collection("novelties").doc(noveltyToDelete.id).delete();
+                setNotification({ message: 'Novedad eliminada exitosamente.', type: 'success' });
             } catch(e) {
                 console.error("Error eliminando novedad: ", e);
-                alert("Hubo un error al eliminar la novedad.");
+                setNotification({ message: 'Hubo un error al eliminar la novedad.', type: 'error' });
             }
             setNoveltyToDelete(null);
         }
@@ -247,7 +251,7 @@ const App: React.FC = () => {
         );
 
         if (alreadyPaid) {
-            alert(`Las vacaciones para ${employee.name} ya fueron pagadas este año.`);
+            setNotification({ message: `Las vacaciones para ${employee.name} ya fueron pagadas este año.`, type: 'info' });
             return;
         }
 
@@ -260,8 +264,16 @@ const App: React.FC = () => {
             description: `Bono vacacional año ${currentYear}`,
             amount: vacationBonus
         };
-        handleSaveNovelty(vacationNovelty);
-        alert(`Bono vacacional de ${vacationBonus.toLocaleString('es-ES', { style: 'currency', currency: 'USD' })} registrado para ${employee.name}. Se reflejará en la próxima planilla.`);
+        try {
+            db.collection("novelties").add(vacationNovelty);
+            setNotification({ 
+                message: `Bono vacacional de ${vacationBonus.toLocaleString('es-ES', { style: 'currency', currency: 'USD' })} registrado.`,
+                type: 'success'
+            });
+        } catch (e) {
+            console.error("Error guardando bono vacacional:", e);
+            setNotification({ message: 'Hubo un error al registrar el bono vacacional.', type: 'error' });
+        }
     };
     
     const handleResetVacation = async () => {
@@ -276,11 +288,11 @@ const App: React.FC = () => {
 
         if (noveltyToDelete) {
              try {
-                // FIX: Use Firebase v8 compat syntax for deleteDoc
                 await db.collection("novelties").doc(noveltyToDelete.id).delete();
+                setNotification({ message: `Pago de vacaciones para ${vacationToReset.name} ha sido restablecido.`, type: 'success' });
             } catch(e) {
                 console.error("Error restableciendo vacación: ", e);
-                alert("Hubo un error al restablecer la vacación.");
+                setNotification({ message: 'Hubo un error al restablecer la vacación.', type: 'error' });
             }
         }
         setVacationToReset(null);
@@ -299,15 +311,13 @@ const App: React.FC = () => {
         }));
         
         try {
-            // Batch write would be better for production, but this is fine for now
             for (const novelty of aguinaldoNovelties) {
-                // FIX: Use Firebase v8 compat syntax for addDoc
                 await db.collection("novelties").add(novelty);
             }
-            alert('Proceso de aguinaldo completado. Los pagos se han generado como novedades y se incluirán en la planilla del mes en curso.');
+            setNotification({ message: 'Proceso de aguinaldo completado exitosamente.', type: 'success' });
         } catch(e) {
             console.error("Error guardando aguinaldos: ", e);
-            alert("Hubo un error al guardar los aguinaldos.");
+            setNotification({ message: 'Hubo un error al guardar los aguinaldos.', type: 'error' });
         }
     };
 
@@ -316,11 +326,11 @@ const App: React.FC = () => {
     const handleDeletePayroll = async () => {
          if (payrollToDelete) {
              try {
-                // FIX: Use Firebase v8 compat syntax for deleteDoc
                 await db.collection("payrolls").doc(payrollToDelete.id).delete();
+                setNotification({ message: `Planilla de ${payrollToDelete.period} eliminada.`, type: 'success' });
              } catch(e) {
                  console.error("Error eliminando planilla: ", e);
-                 alert("Hubo un error al eliminar la planilla.");
+                 setNotification({ message: 'Hubo un error al eliminar la planilla.', type: 'error' });
              }
             setPayrollToDelete(null);
         }
@@ -333,14 +343,13 @@ const App: React.FC = () => {
         const taxableAfterAfpIsss = salary - isssDeduction - afpDeduction;
         
         let rentaDeduction = 0;
-        // Calculation based on the new tax table provided
-        if (taxableAfterAfpIsss > 2038.10) {         // Tramo IV
+        if (taxableAfterAfpIsss > 2038.10) {
             rentaDeduction = ((taxableAfterAfpIsss - 2038.10) * 0.30) + 288.57;
-        } else if (taxableAfterAfpIsss > 895.24) {   // Tramo III
+        } else if (taxableAfterAfpIsss > 895.24) {
             rentaDeduction = ((taxableAfterAfpIsss - 895.24) * 0.20) + 60.00;
-        } else if (taxableAfterAfpIsss > 550.00) {   // Tramo II
+        } else if (taxableAfterAfpIsss > 550.00) {
             rentaDeduction = ((taxableAfterAfpIsss - 550.00) * 0.10) + 17.67;
-        } // Tramo I has no retention, so rentaDeduction remains 0
+        }
         
         const deductions: DeductionDetails = { isss: isssDeduction, afp: afpDeduction, renta: Math.max(0, rentaDeduction) };
         const totalDeductions = isssDeduction + afpDeduction + Math.max(0, rentaDeduction);
@@ -356,7 +365,7 @@ const App: React.FC = () => {
     const handleRunPayroll = useCallback(async () => {
         const activeEmployees = employees.filter(emp => emp.status === 'active' || !emp.status);
         if (activeEmployees.length === 0) {
-            alert("No hay empleados activos para ejecutar la planilla.");
+            setNotification({ message: 'No hay empleados activos para ejecutar la planilla.', type: 'info' });
             return;
         }
         const now = new Date();
@@ -366,7 +375,7 @@ const App: React.FC = () => {
         const periodCapitalized = period.charAt(0).toUpperCase() + period.slice(1);
 
         if (payrolls.some(p => p.period === periodCapitalized)) {
-            alert(`La planilla para ${periodCapitalized} ya ha sido ejecutada.`);
+            setNotification({ message: `La planilla para ${periodCapitalized} ya ha sido ejecutada.`, type: 'info' });
             return;
         }
 
@@ -421,13 +430,12 @@ const App: React.FC = () => {
         const newPayroll: Omit<Payroll, 'id'> = { period: periodCapitalized, date: now, payslips: newPayslips, totalCost: totalPayrollCost };
         
         try {
-            // FIX: Use Firebase v8 compat syntax for addDoc
             await db.collection("payrolls").add(newPayroll);
             setView('payroll');
-            alert(`Planilla para ${periodCapitalized} ejecutada exitosamente con las novedades del mes.`);
+            setNotification({ message: `Planilla para ${periodCapitalized} ejecutada exitosamente.`, type: 'success' });
         } catch(e) {
             console.error("Error ejecutando planilla: ", e);
-            alert("Hubo un error al ejecutar la planilla.");
+            setNotification({ message: 'Hubo un error al ejecutar la planilla.', type: 'error' });
         }
 
     }, [employees, payrolls, novelties]);
@@ -449,7 +457,7 @@ const App: React.FC = () => {
 
     const handleViewChange = (targetView: View) => {
         setView(targetView);
-        setIsSidebarOpen(false); // Close sidebar on mobile after navigation
+        setIsSidebarOpen(false);
     };
 
     const NavItem: React.FC<{
@@ -469,6 +477,20 @@ const App: React.FC = () => {
 
     return (
         <div className="relative min-h-screen md:flex bg-slate-100">
+             {notification && (
+                <div
+                    className={`fixed top-5 left-1/2 -translate-x-1/2 z-50 py-3 px-6 rounded-lg shadow-xl flex items-center justify-between transition-all duration-300
+                        ${notification.type === 'success' ? 'bg-green-500' : ''}
+                        ${notification.type === 'error' ? 'bg-red-500' : ''}
+                        ${notification.type === 'info' ? 'bg-indigo-500' : ''}
+                        text-white`}
+                >
+                    <p className="font-medium mr-4">{notification.message}</p>
+                    <button onClick={() => setNotification(null)} className="p-1 rounded-full hover:bg-black/20">
+                        <CloseIcon className="h-5 w-5" />
+                    </button>
+                </div>
+            )}
             {isSidebarOpen && (
                 <div
                     className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
