@@ -1,5 +1,6 @@
-import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+// Import the functions you need from the SDKs you need
+import firebase from "firebase/compat/app";
+import "firebase/compat/firestore";
 
 // En este entorno de desarrollo específico (que se ejecuta en la infraestructura de Google),
 // el SDK de Firebase puede detectar automáticamente el proyecto utilizando las
@@ -11,7 +12,7 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+firebase.initializeApp(firebaseConfig);
 
 // Initialize Cloud Firestore and get a reference to the service
-export const db = getFirestore(app);
+export const db = firebase.firestore();
