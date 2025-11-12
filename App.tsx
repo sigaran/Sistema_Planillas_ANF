@@ -1,19 +1,10 @@
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+
+import React, { useState, useCallback, useEffect, useMemo, lazy, Suspense } from 'react';
 import { db } from './firebase-config';
 import { Employee, Payroll, Payslip, View, DeductionDetails, EmployerContributions, User, PayrollNovelty } from './types';
 import { DashboardIcon, UsersIcon, DocumentReportIcon, PlusIcon, LogoutIcon, ShieldCheckIcon, CalendarIcon, SunIcon, GiftIcon, MenuIcon, CloseIcon } from './components/icons';
-import Dashboard from './components/Dashboard';
-import EmployeeList from './components/EmployeeList';
-import EmployeeForm from './components/EmployeeForm';
-import PayrollView from './components/PayrollView';
-import UserManagement from './components/UserManagement';
-import NoveltiesView from './components/NoveltiesView';
-import VacationsView from './components/VacationsView';
-import AguinaldoView from './components/AguinaldoView';
-import UserForm from './components/UserForm';
 import Modal from './components/Modal';
-import Login from './components/Login';
 import Spinner from './components/Spinner';
 
 
@@ -23,6 +14,19 @@ export interface AguinaldoData {
     amount: number;
     isTaxable: boolean;
 }
+
+// Lazy-load components for code splitting
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const EmployeeList = lazy(() => import('./components/EmployeeList'));
+const EmployeeForm = lazy(() => import('./components/EmployeeForm'));
+const PayrollView = lazy(() => import('./components/PayrollView'));
+const UserManagement = lazy(() => import('./components/UserManagement'));
+const NoveltiesView = lazy(() => import('./components/NoveltiesView'));
+const VacationsView = lazy(() => import('./components/VacationsView'));
+const AguinaldoView = lazy(() => import('./components/AguinaldoView'));
+const UserForm = lazy(() => import('./components/UserForm'));
+const Login = lazy(() => import('./components/Login'));
+
 
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -71,11 +75,13 @@ const App: React.FC = () => {
             }),
         ];
         
-        Promise.all(queries.map(q => new Promise(resolve => setTimeout(resolve, 0)))).then(() => {
-            setIsLoading(false);
-        });
+        // A simple timeout to hide the initial loader. The real-time listeners will populate the data.
+        const timer = setTimeout(() => setIsLoading(false), 500);
 
-        return () => queries.forEach(unsubscribe => unsubscribe());
+        return () => {
+            clearTimeout(timer);
+            queries.forEach(unsubscribe => unsubscribe());
+        }
 
     }, [currentUser]);
     
@@ -442,7 +448,7 @@ const App: React.FC = () => {
 
 
     const renderView = () => {
-        if (!currentUser || isLoading) return null;
+        if (!currentUser) return null;
         switch (view) {
             case 'dashboard': return <Dashboard employees={employees} payrolls={payrolls} />;
             case 'employees': return <EmployeeList employees={filteredEmployees} onEdit={handleOpenEmployeeModal} onDelete={setEmployeeToDelete} currentUser={currentUser} />;
@@ -471,8 +477,18 @@ const App: React.FC = () => {
       </li>
     );
 
+    const fullPageLoader = (
+        <div className="flex justify-center items-center h-screen bg-slate-100">
+            <Spinner size="lg" />
+        </div>
+    );
+
     if (!currentUser) {
-        return <Login onLoginSuccess={handleLoginSuccess} />;
+        return (
+            <Suspense fallback={fullPageLoader}>
+                <Login onLoginSuccess={handleLoginSuccess} />
+            </Suspense>
+        );
     }
 
     return (
@@ -541,55 +557,67 @@ const App: React.FC = () => {
                     <MenuIcon className="h-6 w-6" />
                 </button>
                 
-                {isLoading && (
+                {isLoading ? (
                     <div className="flex justify-center items-center h-full">
                         <Spinner size="lg" />
                     </div>
-                )}
-                
-                {view === 'employees' && !isLoading && (
-                    <div>
-                        <div className="flex justify-between items-center mb-6">
-                            <h1 className="text-3xl font-bold text-slate-800">Gestión de Empleados</h1>
-                            <button onClick={() => handleOpenEmployeeModal(null)} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center">
-                                <PlusIcon className="h-5 w-5 mr-2"/>Añadir Empleado
-                            </button>
-                        </div>
-                        <div className="mb-4">
-                            <div className="relative">
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                                    <svg className="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none">
-                                        <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
-                                    </svg>
-                                </span>
-                                <input
-                                    type="text"
-                                    placeholder="Buscar por nombre, DUI o puesto..."
-                                    value={employeeSearchTerm}
-                                    onChange={e => setEmployeeSearchTerm(e.target.value)}
-                                    className="w-full py-2 pl-10 pr-4 text-slate-700 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring focus:ring-opacity-40 focus:ring-indigo-500"
-                                />
+                ) : (
+                    <>
+                        {view === 'employees' && (
+                            <div>
+                                <div className="flex justify-between items-center mb-6">
+                                    <h1 className="text-3xl font-bold text-slate-800">Gestión de Empleados</h1>
+                                    <button onClick={() => handleOpenEmployeeModal(null)} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center">
+                                        <PlusIcon className="h-5 w-5 mr-2"/>Añadir Empleado
+                                    </button>
+                                </div>
+                                <div className="mb-4">
+                                    <div className="relative">
+                                        <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                                            <svg className="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none">
+                                                <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                                            </svg>
+                                        </span>
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar por nombre, DUI o puesto..."
+                                            value={employeeSearchTerm}
+                                            onChange={e => setEmployeeSearchTerm(e.target.value)}
+                                            className="w-full py-2 pl-10 pr-4 text-slate-700 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring focus:ring-opacity-40 focus:ring-indigo-500"
+                                        />
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
+                        )}
+                        {view === 'users' && currentUser.role === 'admin' && (
+                            <div className="flex justify-between items-center mb-6">
+                                <h1 className="text-3xl font-bold text-slate-800">Gestión de Usuarios</h1>
+                                <button onClick={() => handleOpenUserModal(null)} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center">
+                                    <PlusIcon className="h-5 w-5 mr-2"/>Añadir Usuario
+                                </button>
+                            </div>
+                        )}
+                        <Suspense fallback={
+                             <div className="flex justify-center items-center h-full pt-16">
+                                <Spinner size="lg" />
+                            </div>
+                        }>
+                            {renderView()}
+                        </Suspense>
+                    </>
                 )}
-                 {view === 'users' && currentUser.role === 'admin' && !isLoading && (
-                    <div className="flex justify-between items-center mb-6">
-                        <h1 className="text-3xl font-bold text-slate-800">Gestión de Usuarios</h1>
-                        <button onClick={() => handleOpenUserModal(null)} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center">
-                            <PlusIcon className="h-5 w-5 mr-2"/>Añadir Usuario
-                        </button>
-                    </div>
-                )}
-                {renderView()}
             </main>
             
             {/* --- Modals --- */}
             <Modal isOpen={isEmployeeModalOpen} onClose={handleCloseEmployeeModal} title={employeeToEdit ? 'Editar Empleado' : 'Añadir Nuevo Empleado'}>
-                <EmployeeForm onSave={handleSaveEmployee} onClose={handleCloseEmployeeModal} employeeToEdit={employeeToEdit} allEmployees={employees} />
+                <Suspense fallback={<div className="flex justify-center p-8"><Spinner/></div>}>
+                    <EmployeeForm onSave={handleSaveEmployee} onClose={handleCloseEmployeeModal} employeeToEdit={employeeToEdit} allEmployees={employees} />
+                </Suspense>
             </Modal>
              <Modal isOpen={isUserModalOpen} onClose={handleCloseUserModal} title={userToEdit ? 'Editar Usuario' : 'Añadir Nuevo Usuario'}>
-                <UserForm onSave={handleSaveUser} onClose={handleCloseUserModal} userToEdit={userToEdit} allUsers={users} />
+                <Suspense fallback={<div className="flex justify-center p-8"><Spinner/></div>}>
+                    <UserForm onSave={handleSaveUser} onClose={handleCloseUserModal} userToEdit={userToEdit} allUsers={users} />
+                </Suspense>
             </Modal>
 
             {/* --- Confirmation Modals --- */}
