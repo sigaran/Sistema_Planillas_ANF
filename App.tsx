@@ -1,7 +1,6 @@
-
-
 import React, { useState, useCallback, useEffect, useMemo, lazy, Suspense } from 'react';
 import { db } from './firebase-config';
+import { collection, onSnapshot, query, orderBy, doc, setDoc, addDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { Employee, Payroll, Payslip, View, DeductionDetails, EmployerContributions, User, PayrollNovelty } from './types';
 import { DashboardIcon, UsersIcon, DocumentReportIcon, PlusIcon, LogoutIcon, ShieldCheckIcon, CalendarIcon, SunIcon, GiftIcon, MenuIcon, CloseIcon } from './components/icons';
 import Modal from './components/Modal';
@@ -58,19 +57,21 @@ const App: React.FC = () => {
 
         setIsLoading(true);
         const queries = [
-            db.collection("users").onSnapshot((snapshot) => 
+            onSnapshot(collection(db, "users"), (snapshot) => 
                 setUsers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User)))
             ),
-            db.collection("employees").onSnapshot((snapshot) => 
+            onSnapshot(collection(db, "employees"), (snapshot) => 
                 setEmployees(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee)))
             ),
-            db.collection("novelties").onSnapshot((snapshot) => 
+            onSnapshot(collection(db, "novelties"), (snapshot) => 
                 setNovelties(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as PayrollNovelty)))
             ),
-            db.collection("payrolls").orderBy("date", "desc").onSnapshot((snapshot) => {
+            onSnapshot(query(collection(db, "payrolls"), orderBy("date", "desc")), (snapshot) => {
                  setPayrolls(snapshot.docs.map(doc => {
                     const data = doc.data();
-                    return { ...data, id: doc.id, date: data.date.toDate() } as Payroll;
+                    // Firestore v9+ returns Timestamp objects, so we need to convert them
+                    const date = data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date);
+                    return { ...data, id: doc.id, date } as Payroll;
                 }));
             }),
         ];
@@ -151,11 +152,11 @@ const App: React.FC = () => {
 
         try {
             if (employeeToEdit) {
-                 await db.collection("employees").doc(employeeToEdit.id).set(employee);
+                 await setDoc(doc(db, "employees", employeeToEdit.id), employee);
                  setNotification({ message: 'Empleado actualizado exitosamente.', type: 'success' });
             } else {
                 const { id, ...employeeData } = employee;
-                await db.collection("employees").add(employeeData);
+                await addDoc(collection(db, "employees"), employeeData);
                 setNotification({ message: 'Empleado creado exitosamente.', type: 'success' });
             }
             handleCloseEmployeeModal();
@@ -167,7 +168,7 @@ const App: React.FC = () => {
     const handleDeleteEmployee = async () => {
         if (employeeToDelete) {
              try {
-                await db.collection("employees").doc(employeeToDelete.id).delete();
+                await deleteDoc(doc(db, "employees", employeeToDelete.id));
                 setNotification({ message: `Empleado "${employeeToDelete.name}" eliminado.`, type: 'success' });
              } catch(e) {
                 console.error("Error eliminando empleado: ", e);
@@ -198,11 +199,11 @@ const App: React.FC = () => {
 
         try {
             if (userToEdit) {
-                 await db.collection("users").doc(userToEdit.id).set(user);
+                 await setDoc(doc(db, "users", userToEdit.id), user);
                  setNotification({ message: 'Usuario actualizado exitosamente.', type: 'success' });
             } else {
                 const { id, ...userData } = user;
-                await db.collection("users").add(userData);
+                await addDoc(collection(db, "users"), userData);
                 setNotification({ message: 'Usuario creado exitosamente.', type: 'success' });
             }
             handleCloseUserModal();
@@ -214,7 +215,7 @@ const App: React.FC = () => {
     const handleDeleteUser = async () => {
         if (userToDelete) {
             try {
-                await db.collection("users").doc(userToDelete.id).delete();
+                await deleteDoc(doc(db, "users", userToDelete.id));
                 setNotification({ message: `Usuario "${userToDelete.username}" eliminado.`, type: 'success' });
             } catch(e) {
                 console.error("Error eliminando usuario: ", e);
@@ -227,7 +228,7 @@ const App: React.FC = () => {
     // --- Novelty Handlers ---
     const handleSaveNovelty = async (novelty: Omit<PayrollNovelty, 'id'>) => {
         try {
-            await db.collection("novelties").add(novelty);
+            await addDoc(collection(db, "novelties"), novelty);
             setNotification({ message: 'Novedad guardada exitosamente.', type: 'success' });
         } catch(e) {
             console.error("Error guardando novedad: ", e);
@@ -237,7 +238,7 @@ const App: React.FC = () => {
     const handleDeleteNovelty = async () => {
         if (noveltyToDelete) {
             try {
-                await db.collection("novelties").doc(noveltyToDelete.id).delete();
+                await deleteDoc(doc(db, "novelties", noveltyToDelete.id));
                 setNotification({ message: 'Novedad eliminada exitosamente.', type: 'success' });
             } catch(e) {
                 console.error("Error eliminando novedad: ", e);
@@ -271,7 +272,7 @@ const App: React.FC = () => {
             amount: vacationBonus
         };
         try {
-            db.collection("novelties").add(vacationNovelty);
+            addDoc(collection(db, "novelties"), vacationNovelty);
             setNotification({ 
                 message: `Bono vacacional de ${vacationBonus.toLocaleString('es-ES', { style: 'currency', currency: 'USD' })} registrado.`,
                 type: 'success'
@@ -294,7 +295,7 @@ const App: React.FC = () => {
 
         if (noveltyToDelete) {
              try {
-                await db.collection("novelties").doc(noveltyToDelete.id).delete();
+                await deleteDoc(doc(db, "novelties", noveltyToDelete.id));
                 setNotification({ message: `Pago de vacaciones para ${vacationToReset.name} ha sido restablecido.`, type: 'success' });
             } catch(e) {
                 console.error("Error restableciendo vacación: ", e);
@@ -317,9 +318,8 @@ const App: React.FC = () => {
         }));
         
         try {
-            for (const novelty of aguinaldoNovelties) {
-                await db.collection("novelties").add(novelty);
-            }
+            const batch = aguinaldoNovelties.map(novelty => addDoc(collection(db, "novelties"), novelty));
+            await Promise.all(batch);
             setNotification({ message: 'Proceso de aguinaldo completado exitosamente.', type: 'success' });
         } catch(e) {
             console.error("Error guardando aguinaldos: ", e);
@@ -332,7 +332,7 @@ const App: React.FC = () => {
     const handleDeletePayroll = async () => {
          if (payrollToDelete) {
              try {
-                await db.collection("payrolls").doc(payrollToDelete.id).delete();
+                await deleteDoc(doc(db, "payrolls", payrollToDelete.id));
                 setNotification({ message: `Planilla de ${payrollToDelete.period} eliminada.`, type: 'success' });
              } catch(e) {
                  console.error("Error eliminando planilla: ", e);
@@ -436,7 +436,7 @@ const App: React.FC = () => {
         const newPayroll: Omit<Payroll, 'id'> = { period: periodCapitalized, date: now, payslips: newPayslips, totalCost: totalPayrollCost };
         
         try {
-            await db.collection("payrolls").add(newPayroll);
+            await addDoc(collection(db, "payrolls"), newPayroll);
             setView('payroll');
             setNotification({ message: `Planilla para ${periodCapitalized} ejecutada exitosamente.`, type: 'success' });
         } catch(e) {
