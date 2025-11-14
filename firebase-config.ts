@@ -1,6 +1,4 @@
-// FIX: Using a namespace import for firebase to fix an issue where 'initializeApp' was not found as a named export.
-// This is a common solution for module resolution problems in some environments.
-import * as firebase from "firebase/app";
+import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 // En este entorno de desarrollo específico (que se ejecuta en la infraestructura de Google),
@@ -13,7 +11,7 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = firebase.initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
 
 // Initialize Cloud Firestore and get a reference to the service
 export const db = getFirestore(app);

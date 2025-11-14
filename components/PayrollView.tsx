@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Payroll, Payslip, User } from '../types';
 import Modal from './Modal';
 import { DownloadIcon, TrashIcon } from './icons';
-import Spinner from './Spinner';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface PayrollViewProps {
     payrolls: Payroll[];
@@ -14,78 +15,67 @@ interface PayrollViewProps {
 const formatCurrency = (amount: number) => amount.toLocaleString('es-ES', { style: 'currency', currency: 'USD' });
 
 const PayslipDetailModal: React.FC<{ payslip: Payslip; payrollPeriod: string; onClose: () => void }> = ({ payslip, payrollPeriod, onClose }) => {
-    const [isExporting, setIsExporting] = useState(false);
 
-    const exportToPDF = async () => {
-        setIsExporting(true);
-        try {
-            const { default: jsPDF } = await import('jspdf');
-            await import('jspdf-autotable');
-            
-            const doc = new jsPDF();
-            
-            doc.setFontSize(18);
-            doc.text("Recibo de Pago", 14, 22);
-            doc.setFontSize(11);
-            doc.setTextColor(100);
-            doc.text(`Periodo: ${payrollPeriod}`, 14, 29);
-            doc.text(`Empleado: ${payslip.employeeName}`, 14, 36);
+    const exportToPDF = () => {
+        const doc = new jsPDF();
+        
+        doc.setFontSize(18);
+        doc.text("Recibo de Pago", 14, 22);
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text(`Periodo: ${payrollPeriod}`, 14, 29);
+        doc.text(`Empleado: ${payslip.employeeName}`, 14, 36);
 
-            (doc as any).autoTable({
-                startY: 42,
-                head: [['Ingresos', 'Monto']],
-                body: [
-                    ['Salario Base', formatCurrency(payslip.baseSalary)],
-                    ['Pago por Horas Extras', formatCurrency(payslip.overtimePay)],
-                    ['Pago de Vacaciones', formatCurrency(payslip.vacationPay)],
-                    [`Aguinaldo ${payslip.aguinaldoIsTaxable ? '(Gravable)' : '(Exento)'}`, formatCurrency(payslip.aguinaldoPay)],
-                ],
-                foot: [[{ content: 'Total Ingresos Gravables (Salario Bruto)', styles: { fontStyle: 'bold' } }, { content: formatCurrency(payslip.grossPay), styles: { fontStyle: 'bold' } }]],
-                theme: 'striped',
-                headStyles: { fillColor: [74, 85, 104] },
-                footStyles: { fillColor: [241, 245, 249], textColor: [0,0,0] },
-            });
+        (doc as any).autoTable({
+            startY: 42,
+            head: [['Ingresos', 'Monto']],
+            body: [
+                ['Salario Base', formatCurrency(payslip.baseSalary)],
+                ['Pago por Horas Extras', formatCurrency(payslip.overtimePay)],
+                ['Pago de Vacaciones', formatCurrency(payslip.vacationPay)],
+                [`Aguinaldo ${payslip.aguinaldoIsTaxable ? '(Gravable)' : '(Exento)'}`, formatCurrency(payslip.aguinaldoPay)],
+            ],
+            foot: [[{ content: 'Total Ingresos Gravables (Salario Bruto)', styles: { fontStyle: 'bold' } }, { content: formatCurrency(payslip.grossPay), styles: { fontStyle: 'bold' } }]],
+            theme: 'striped',
+            headStyles: { fillColor: [74, 85, 104] },
+            footStyles: { fillColor: [241, 245, 249], textColor: [0,0,0] },
+        });
 
-            (doc as any).autoTable({
-                startY: (doc as any).lastAutoTable.finalY + 10,
-                head: [['Deducciones de Ley', 'Monto']],
-                body: [
-                    ['ISSS (3%)', formatCurrency(payslip.deductions.isss)],
-                    ['AFP (7.25%)', formatCurrency(payslip.deductions.afp)],
-                    ['Impuesto sobre la Renta', formatCurrency(payslip.deductions.renta)],
-                ],
-                foot: [[{ content: 'Total Deducciones de Ley', styles: { fontStyle: 'bold' } }, { content: formatCurrency(payslip.totalDeductions), styles: { fontStyle: 'bold' } }]],
-                theme: 'striped',
-                headStyles: { fillColor: [74, 85, 104] },
-                footStyles: { fillColor: [241, 245, 249], textColor: [0,0,0] },
-            });
-            
-            (doc as any).autoTable({
-                startY: (doc as any).lastAutoTable.finalY + 10,
-                head: [['Otros Ingresos / Egresos', 'Monto']],
-                body: [
-                    ['Viáticos (No Gravable)', formatCurrency(payslip.expenses)],
-                    ['Otros Descuentos', formatCurrency(payslip.otherDeductions > 0 ? -payslip.otherDeductions : 0)],
-                ],
-                theme: 'striped',
-            });
+        (doc as any).autoTable({
+            startY: (doc as any).lastAutoTable.finalY + 10,
+            head: [['Deducciones de Ley', 'Monto']],
+            body: [
+                ['ISSS (3%)', formatCurrency(payslip.deductions.isss)],
+                ['AFP (7.25%)', formatCurrency(payslip.deductions.afp)],
+                ['Impuesto sobre la Renta', formatCurrency(payslip.deductions.renta)],
+            ],
+            foot: [[{ content: 'Total Deducciones de Ley', styles: { fontStyle: 'bold' } }, { content: formatCurrency(payslip.totalDeductions), styles: { fontStyle: 'bold' } }]],
+            theme: 'striped',
+            headStyles: { fillColor: [74, 85, 104] },
+            footStyles: { fillColor: [241, 245, 249], textColor: [0,0,0] },
+        });
+        
+        (doc as any).autoTable({
+            startY: (doc as any).lastAutoTable.finalY + 10,
+            head: [['Otros Ingresos / Egresos', 'Monto']],
+            body: [
+                ['Viáticos (No Gravable)', formatCurrency(payslip.expenses)],
+                ['Otros Descuentos', formatCurrency(payslip.otherDeductions > 0 ? -payslip.otherDeductions : 0)],
+            ],
+            theme: 'striped',
+        });
 
-            (doc as any).autoTable({
-                startY: (doc as any).lastAutoTable.finalY + 10,
-                body: [
-                    [{ content: 'Salario Neto a Pagar', styles: { fontStyle: 'bold', fontSize: 12, halign: 'left' } },
-                     { content: formatCurrency(payslip.netPay), styles: { fontStyle: 'bold', fontSize: 12, halign: 'right' } }]
-                ],
-                theme: 'grid',
-                styles: { fillColor: [237, 242, 247], textColor: [26, 32, 44] }
-            });
-            
-            doc.save(`Recibo_${payslip.employeeName.replace(' ', '_')}_${payrollPeriod}.pdf`);
-        } catch (error) {
-            console.error("Error al exportar a PDF:", error);
-        } finally {
-            setIsExporting(false);
-        }
+        (doc as any).autoTable({
+            startY: (doc as any).lastAutoTable.finalY + 10,
+            body: [
+                [{ content: 'Salario Neto a Pagar', styles: { fontStyle: 'bold', fontSize: 12, halign: 'left' } },
+                 { content: formatCurrency(payslip.netPay), styles: { fontStyle: 'bold', fontSize: 12, halign: 'right' } }]
+            ],
+            theme: 'grid',
+            styles: { fillColor: [237, 242, 247], textColor: [26, 32, 44] }
+        });
+        
+        doc.save(`Recibo_${payslip.employeeName.replace(' ', '_')}_${payrollPeriod}.pdf`);
     };
 
     return (
@@ -136,22 +126,9 @@ const PayslipDetailModal: React.FC<{ payslip: Payslip; payrollPeriod: string; on
                     <div className="text-right">{formatCurrency(payslip.netPay)}</div>
                 </div>
                  <div className="border-t pt-4 flex justify-end">
-                    <button 
-                        onClick={exportToPDF}
-                        disabled={isExporting}
-                        className="flex items-center justify-center min-w-[150px] px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors text-sm disabled:bg-slate-400"
-                    >
-                        {isExporting ? (
-                            <>
-                                <Spinner size="sm" />
-                                <span className="ml-2">Exportando...</span>
-                            </>
-                        ) : (
-                            <>
-                                <DownloadIcon className="h-4 w-4 mr-2" />
-                                Exportar a PDF
-                            </>
-                        )}
+                    <button onClick={exportToPDF} className="flex items-center px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors text-sm">
+                        <DownloadIcon className="h-4 w-4 mr-2" />
+                        Exportar a PDF
                     </button>
                 </div>
             </div>
@@ -160,55 +137,44 @@ const PayslipDetailModal: React.FC<{ payslip: Payslip; payrollPeriod: string; on
 }
 
 const UnifiedPayrollModal: React.FC<{ payroll: Payroll; onClose: () => void }> = ({ payroll, onClose }) => {
-    const [isExporting, setIsExporting] = useState(false);
+    
+    const exportToPDF = () => {
+        const doc = new jsPDF();
+        const head = [['Empleado', 'Salario Base', 'ISSS Patronal (7.5%)', 'AFP Patronal (8.75%)', 'Costo Total Empleado']];
+        const body = payroll.payslips.map(p => [
+            p.employeeName,
+            formatCurrency(p.grossPay), // Costo es sobre el salario gravable
+            formatCurrency(p.employerContributions.isss),
+            formatCurrency(p.employerContributions.afp),
+            formatCurrency(p.grossPay + p.employerContributions.total)
+        ]);
+        const foot = [[
+            'Total General',
+            formatCurrency(payroll.payslips.reduce((acc, p) => acc + p.grossPay, 0)),
+            formatCurrency(payroll.payslips.reduce((acc, p) => acc + p.employerContributions.isss, 0)),
+            formatCurrency(payroll.payslips.reduce((acc, p) => acc + p.employerContributions.afp, 0)),
+            formatCurrency(payroll.totalCost)
+        ]];
 
-    const exportToPDF = async () => {
-        setIsExporting(true);
-        try {
-            const { default: jsPDF } = await import('jspdf');
-            await import('jspdf-autotable');
-
-            const doc = new jsPDF();
-            const head = [['Empleado', 'Salario Base', 'ISSS Patronal (7.5%)', 'AFP Patronal (8.75%)', 'Costo Total Empleado']];
-            const body = payroll.payslips.map(p => [
-                p.employeeName,
-                formatCurrency(p.grossPay), // Costo es sobre el salario gravable
-                formatCurrency(p.employerContributions.isss),
-                formatCurrency(p.employerContributions.afp),
-                formatCurrency(p.grossPay + p.employerContributions.total)
-            ]);
-            const foot = [[
-                'Total General',
-                formatCurrency(payroll.payslips.reduce((acc, p) => acc + p.grossPay, 0)),
-                formatCurrency(payroll.payslips.reduce((acc, p) => acc + p.employerContributions.isss, 0)),
-                formatCurrency(payroll.payslips.reduce((acc, p) => acc + p.employerContributions.afp, 0)),
-                formatCurrency(payroll.totalCost)
-            ]];
-
-            doc.setFontSize(18);
-            doc.text(`Planilla Patronal - ${payroll.period}`, 14, 22);
-            
-            (doc as any).autoTable({
-                head,
-                body,
-                foot,
-                startY: 30,
-                headStyles: { fillColor: [30, 41, 59] },
-                footStyles: { fillColor: [241, 245, 249], textColor: [0,0,0], fontStyle: 'bold' },
-                styles: { cellPadding: 2.5, fontSize: 8 },
-                didParseCell: function(data: any) {
-                    if (typeof data.cell.raw === 'string' && data.cell.raw.startsWith('$')) {
-                        data.cell.styles.halign = 'right';
-                    }
+        doc.setFontSize(18);
+        doc.text(`Planilla Patronal - ${payroll.period}`, 14, 22);
+        
+        (doc as any).autoTable({
+            head,
+            body,
+            foot,
+            startY: 30,
+            headStyles: { fillColor: [30, 41, 59] },
+            footStyles: { fillColor: [241, 245, 249], textColor: [0,0,0], fontStyle: 'bold' },
+            styles: { cellPadding: 2.5, fontSize: 8 },
+            didParseCell: function(data: any) {
+                if (typeof data.cell.raw === 'string' && data.cell.raw.startsWith('$')) {
+                    data.cell.styles.halign = 'right';
                 }
-            });
+            }
+        });
 
-            doc.save(`Planilla_Patronal_${payroll.period}.pdf`);
-        } catch (error) {
-            console.error("Error al exportar a PDF:", error);
-        } finally {
-            setIsExporting(false);
-        }
+        doc.save(`Planilla_Patronal_${payroll.period}.pdf`);
     };
 
     return (
@@ -246,22 +212,9 @@ const UnifiedPayrollModal: React.FC<{ payroll: Payroll; onClose: () => void }> =
                     </tfoot>
                 </table>
                  <div className="mt-6 flex justify-end">
-                    <button 
-                        onClick={exportToPDF} 
-                        disabled={isExporting}
-                        className="flex items-center justify-center min-w-[150px] px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors text-sm disabled:bg-slate-400"
-                    >
-                        {isExporting ? (
-                            <>
-                                <Spinner size="sm" />
-                                <span className="ml-2">Exportando...</span>
-                            </>
-                        ) : (
-                            <>
-                                <DownloadIcon className="h-4 w-4 mr-2" />
-                                Exportar a PDF
-                            </>
-                        )}
+                    <button onClick={exportToPDF} className="flex items-center px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors text-sm">
+                        <DownloadIcon className="h-4 w-4 mr-2" />
+                        Exportar a PDF
                     </button>
                 </div>
             </div>
