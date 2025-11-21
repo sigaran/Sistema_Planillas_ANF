@@ -1,6 +1,9 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Employee, PayrollNovelty, OvertimeRateType, User } from '../types';
-import { PlusIcon, TrashIcon } from './icons';
+import { PlusIcon, TrashIcon, DownloadIcon } from './icons';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface NoveltiesViewProps {
     employees: Employee[];
@@ -239,6 +242,66 @@ const NoveltiesView: React.FC<NoveltiesViewProps> = ({ employees, novelties, onS
         aguinaldo: <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">Aguinaldo</span>,
     };
 
+    const generateMonthlyReport = () => {
+        if (displayedNovelties.length === 0) return;
+
+        const doc = new jsPDF();
+        const periodName = viewDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+        const title = `Reporte de Novedades - ${periodName.charAt(0).toUpperCase() + periodName.slice(1)}`;
+
+        doc.setFontSize(18);
+        doc.text(title, 14, 22);
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text(`Generado el: ${new Date().toLocaleDateString()}`, 14, 29);
+
+        const tableColumn = ["Fecha", "Empleado", "Tipo", "Descripción", "Monto/Valor"];
+        const tableRows: any[] = [];
+
+        let totalAmount = 0;
+
+        displayedNovelties.forEach(novelty => {
+            const date = new Date(novelty.date).toLocaleDateString();
+            
+            let typeName = 'Otro';
+            switch(novelty.type) {
+                case 'overtime': typeName = 'Hora Extra'; break;
+                case 'expense': typeName = 'Viático'; break;
+                case 'unpaid_leave': typeName = 'Permiso s/ Sueldo'; break;
+                case 'vacation_pay': typeName = 'Vacación'; break;
+                case 'aguinaldo': typeName = 'Aguinaldo'; break;
+            }
+
+            let valueText = '-';
+            if (novelty.amount) {
+                valueText = novelty.amount.toLocaleString('es-ES', { style: 'currency', currency: 'USD' });
+                totalAmount += novelty.amount; // Note: This sums expenses and deductions together visually, purely informational
+            } else if (novelty.overtimeHours) {
+                valueText = `${novelty.overtimeHours} hrs`;
+            }
+
+            tableRows.push([
+                date,
+                novelty.employeeName,
+                typeName,
+                novelty.description,
+                valueText
+            ]);
+        });
+
+        (doc as any).autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 35,
+            theme: 'striped',
+            headStyles: { fillColor: [74, 85, 104] },
+            foot: [['', '', '', 'Total Monto (Viáticos/Bonos/Desc):', totalAmount.toLocaleString('es-ES', { style: 'currency', currency: 'USD' })]],
+            footStyles: { fillColor: [241, 245, 249], textColor: [0,0,0], fontStyle: 'bold' },
+        });
+
+        doc.save(`Novedades_${periodName.replace(' ', '_')}.pdf`);
+    };
+
     return (
         <div>
             <h1 className="text-3xl font-bold text-slate-800 mb-6">Gestión de Novedades</h1>
@@ -361,20 +424,30 @@ const NoveltiesView: React.FC<NoveltiesViewProps> = ({ employees, novelties, onS
                     </form>
                 </div>
                 <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
-                     <div className="flex justify-between items-center mb-4">
+                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                         <h2 className="text-xl font-semibold capitalize">
                             Novedades de {viewDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
                         </h2>
-                        <div className="flex items-center space-x-2">
-                            <label htmlFor="month-picker" className="text-sm font-medium text-slate-700">Ver mes:</label>
-                            <input
-                                type="month"
-                                id="month-picker"
-                                value={viewDate.toISOString().slice(0, 7)}
-                                max={maxMonth}
-                                onChange={handleMonthChange}
-                                className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm"
-                            />
+                        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                            <div className="flex items-center space-x-2">
+                                <label htmlFor="month-picker" className="text-sm font-medium text-slate-700">Ver mes:</label>
+                                <input
+                                    type="month"
+                                    id="month-picker"
+                                    value={viewDate.toISOString().slice(0, 7)}
+                                    max={maxMonth}
+                                    onChange={handleMonthChange}
+                                    className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm"
+                                />
+                            </div>
+                            <button 
+                                onClick={generateMonthlyReport}
+                                disabled={displayedNovelties.length === 0}
+                                className="flex items-center px-3 py-1.5 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                            >
+                                <DownloadIcon className="h-4 w-4 mr-1.5" />
+                                Exportar Reporte
+                            </button>
                         </div>
                      </div>
                      <div className="overflow-x-auto max-h-96">
